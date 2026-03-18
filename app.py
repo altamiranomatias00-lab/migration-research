@@ -26,8 +26,45 @@ from formulas import (
     is_within_days,
 )
 from scraper import Country, Program, Scholarship
+import time
+from collections import defaultdict
 
 app = Flask(__name__, static_folder="static")
+
+# ─── SECURITY ────────────────────────────────────────
+# Rate limiting: max requests per IP per minute
+_rate_limit = defaultdict(list)
+RATE_LIMIT_MAX = 30  # requests
+RATE_LIMIT_WINDOW = 60  # seconds
+
+def _check_rate_limit(ip: str) -> bool:
+    now = time.time()
+    _rate_limit[ip] = [t for t in _rate_limit[ip] if now - t < RATE_LIMIT_WINDOW]
+    if len(_rate_limit[ip]) >= RATE_LIMIT_MAX:
+        return False
+    _rate_limit[ip].append(now)
+    return True
+
+@app.before_request
+def security_checks():
+    if not _check_rate_limit(request.remote_addr):
+        return jsonify({"error": "rate limit exceeded"}), 429
+
+@app.after_request
+def security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'"
+    )
+    return response
 
 LIVING_COSTS = {
     "DE": 1100, "NL": 1400, "CA": 1500, "AU": 1600, "US": 1800,
@@ -110,40 +147,18 @@ def api_config():
 
 @app.route("/api/db-stats")
 def api_db_stats():
-    """Return current state of all SQLite tables for debugging."""
+    """Return table counts only (no sample data exposed)."""
+    import os
+    admin_key = request.args.get("key", "")
+    expected = os.environ.get("ADMIN_KEY", "")
+    if not expected or admin_key != expected:
+        return jsonify({"error": "unauthorized"}), 403
+
     conn = get_conn()
     stats = {}
-    # Table counts
     for table in ["countries", "programs", "scholarships", "program_scholarships", "viability_pathways"]:
         row = conn.execute(f"SELECT COUNT(*) as cnt FROM {table}").fetchone()
-        stats[table] = {"count": row["cnt"]}
-
-    # Sample data from each table
-    countries = conn.execute("SELECT country_id, country_name, region, months_to_pr, study_visa_months, post_study_extension_months, solvency_buffer_usd, work_permit_allowed, max_hours_per_week, embassy_in_peru, link_pr, link_study_visa FROM countries ORDER BY updated_at DESC LIMIT 10").fetchall()
-    stats["countries"]["rows"] = [dict(r) for r in countries]
-
-    programs = conn.execute("SELECT program_id, program_name, university, city, country_id, faculty_or_department, degree_level, duration_months, full_tuition_usd, program_url, language_of_instruction FROM programs ORDER BY updated_at DESC LIMIT 10").fetchall()
-    stats["programs"]["rows"] = [dict(r) for r in programs]
-
-    scholarships = conn.execute("SELECT scholarship_id, scholarship_name, provider_organization, coverage_pct, monthly_stipend_usd, application_deadline, scholarship_url, peru_eligible, covers_mobility_expenses, covers_medical_insurance FROM scholarships ORDER BY updated_at DESC LIMIT 10").fetchall()
-    stats["scholarships"]["rows"] = [dict(r) for r in scholarships]
-
-    pathways = conn.execute("SELECT pathway_id, country_id, program_id, vci_usd, vci_rank, viability_status, legal_gap_months, coverage_ratio_pct FROM viability_pathways ORDER BY vci_usd ASC NULLS LAST LIMIT 10").fetchall()
-    stats["viability_pathways"]["rows"] = [dict(r) for r in pathways]
-
-    # Check for NULL fields (data quality)
-    null_checks = {}
-    for col in ["months_to_pr", "study_visa_months", "solvency_buffer_usd", "link_pr", "link_study_visa"]:
-        row = conn.execute(f"SELECT COUNT(*) as cnt FROM countries WHERE {col} IS NULL OR {col} = ''").fetchone()
-        null_checks[f"countries.{col}_missing"] = row["cnt"]
-    for col in ["full_tuition_usd", "program_url", "faculty_or_department", "duration_months"]:
-        row = conn.execute(f"SELECT COUNT(*) as cnt FROM programs WHERE {col} IS NULL OR {col} = ''").fetchone()
-        null_checks[f"programs.{col}_missing"] = row["cnt"]
-    for col in ["coverage_pct", "monthly_stipend_usd", "scholarship_url", "application_deadline"]:
-        row = conn.execute(f"SELECT COUNT(*) as cnt FROM scholarships WHERE {col} IS NULL OR {col} = ''").fetchone()
-        null_checks[f"scholarships.{col}_missing"] = row["cnt"]
-    stats["null_field_counts"] = null_checks
-
+        stats[table] = row["cnt"]
     conn.close()
     return jsonify(stats)
 
