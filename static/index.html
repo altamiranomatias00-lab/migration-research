@@ -1033,15 +1033,14 @@ function doSearch() {
       showResults(d);
     }
 
-    // Show cached results immediately
-    if (data.length) {
+    function finishSearch() {
       sBtn.disabled = false;
       sBtn.textContent = t('searchBtn');
-      if (!jobId) { aiInd.classList.remove('show'); stopPhraseRotation(); }
-      processAndShow(data);
+      aiInd.classList.remove('show');
+      stopPhraseRotation();
     }
 
-    // Poll for AI results if job was launched
+    // If AI job launched, wait for it — don't show panel yet
     if (jobId) {
       let polls = 0;
       const maxPolls = 30; // 30 * 3s = 90s max
@@ -1050,40 +1049,31 @@ function doSearch() {
         fetch(`/api/search/poll/${jobId}`).then(r => r.json()).then(p => {
           if (p.status === 'done') {
             clearInterval(pollInterval);
-            sBtn.disabled = false;
-            sBtn.textContent = t('searchBtn');
-            aiInd.classList.remove('show');
-            stopPhraseRotation();
+            finishSearch();
             if (p.results && p.results.length) {
-              // Merge: AI results first, then cached that aren't duplicates
               const aiIds = new Set(p.results.map(r => r.program_id));
               const merged = [...p.results, ...data.filter(r => !aiIds.has(r.program_id))];
               processAndShow(merged);
-            } else if (!data.length) {
-              showResults([]);
+            } else {
+              // AI returned nothing — show cached
+              processAndShow(data.length ? data : []);
             }
           } else if (polls >= maxPolls) {
             clearInterval(pollInterval);
-            sBtn.disabled = false;
-            sBtn.textContent = t('searchBtn');
-            aiInd.classList.remove('show');
-            stopPhraseRotation();
-            if (!data.length) showResults([]);
+            finishSearch();
+            // Timeout — show cached
+            processAndShow(data.length ? data : []);
           }
         }).catch(() => {
           clearInterval(pollInterval);
-          aiInd.classList.remove('show');
-          stopPhraseRotation();
-          sBtn.disabled = false;
-          sBtn.textContent = t('searchBtn');
+          finishSearch();
+          processAndShow(data.length ? data : []);
         });
       }, 3000);
     } else {
-      sBtn.disabled = false;
-      sBtn.textContent = t('searchBtn');
-      aiInd.classList.remove('show');
-      stopPhraseRotation();
-      if (!data.length) showResults([]);
+      // No AI job — show cached immediately
+      finishSearch();
+      processAndShow(data);
     }
   }).catch(err => {
     console.error('Search failed:', err);
