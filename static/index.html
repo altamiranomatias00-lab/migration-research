@@ -997,6 +997,13 @@ function doSearch() {
   if (!q) return;
   sBtn.disabled = true;
   sBtn.textContent = '...';
+  // Collapse search bubble immediately so it doesn't overlap the AI indicator
+  bubbleLocked = true;
+  qInput.blur();
+  bubble.classList.remove('expanded');
+  bubble.classList.add('collapsed');
+  setTimeout(() => { bubbleLocked = false; }, 500);
+  // Show AI loading indicator
   aiInd.classList.add('show');
   startPhraseRotation();
 
@@ -1025,16 +1032,7 @@ function doSearch() {
     aiInd.classList.remove('show');
     stopPhraseRotation();
     showResults(data);
-    // Collapse search bubble to give results full view
-    if (data.length) {
-      bubbleLocked = true;
-      qInput.blur();
-      setTimeout(() => {
-        bubble.classList.remove('expanded');
-        bubble.classList.add('collapsed');
-        setTimeout(() => { bubbleLocked = false; }, 400);
-      }, 500);
-    }
+    // Bubble already collapsed at search start — no action needed
   }).catch(() => {
     sBtn.disabled = false;
     sBtn.textContent = t('searchBtn');
