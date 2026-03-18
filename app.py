@@ -244,6 +244,12 @@ def api_search():
             else:
                 cached = search_programs(keyword=keyword, degree_levels=degrees, country_ids=countries)
             print(f"[SEARCH] after ingest: {len(cached)} results", flush=True)
+        else:
+            print(f"[SEARCH] AI returned None, falling back to all cached", flush=True)
+            # AI failed — return whatever we have in cache (broader search)
+            if not cached:
+                cached = search_programs(keyword=None, degree_levels=degrees, country_ids=countries)
+                print(f"[SEARCH] fallback all cached: {len(cached)} results", flush=True)
 
     # Parse JSON strings and add coordinates
     for r in cached:
