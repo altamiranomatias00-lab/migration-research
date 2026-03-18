@@ -211,6 +211,7 @@ def api_db_stats():
 
 @app.route("/api/search")
 def api_search():
+  try:
     keyword = request.args.get("q", "").strip() or None
     degrees = request.args.getlist("degree") or None
     countries = request.args.getlist("country") or None
@@ -263,6 +264,11 @@ def api_search():
         r["coords"] = CITY_COORDS.get(city)
 
     return jsonify(cached)
+  except Exception as e:
+    import traceback
+    traceback.print_exc()
+    print(f"[SEARCH] FATAL ERROR: {e}", flush=True)
+    return jsonify({"error": str(e), "type": type(e).__name__}), 500
 
 
 @app.route("/api/program/<program_id>")
