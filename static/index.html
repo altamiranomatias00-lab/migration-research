@@ -319,8 +319,13 @@ const T = {
     noEmbassy: 'NO EMBASSY',
     pressure: 'PRESSURE',
     selfFund: 'SELF-FUND',
-    mobility: 'MOBILITY',
-    medical: 'MEDICAL',
+    mobility: 'TRAVEL COVERED',
+    medical: 'INSURANCE',
+    workVisa: 'Work Visa (mo)',
+    remaining: 'Remaining (mo)',
+    language: 'Language',
+    scholAmount: 'Scholarship Covers',
+    costAfterSchol: 'You Pay',
     r_Europe: 'EUROPE', r_NorthAmerica: 'NORTH AMERICA', r_Oceania: 'OCEANIA',
     r_Asia: 'ASIA', r_SouthAmerica: 'SOUTH AMERICA', r_Africa: 'AFRICA',
   },
@@ -365,8 +370,13 @@ const T = {
     noEmbassy: 'SIN EMBAJADA',
     pressure: 'PRESIÓN',
     selfFund: 'AUTOFINANC.',
-    mobility: 'MOVILIDAD',
-    medical: 'MÉDICO',
+    mobility: 'VIAJE CUBIERTO',
+    medical: 'SEGURO MÉDICO',
+    workVisa: 'Visa Trabajo (m)',
+    remaining: 'Restante (m)',
+    language: 'Idioma',
+    scholAmount: 'Beca Cubre',
+    costAfterSchol: 'Pagas Tú',
     r_Europe: 'EUROPA', r_NorthAmerica: 'NORTEAMÉRICA', r_Oceania: 'OCEANÍA',
     r_Asia: 'ASIA', r_SouthAmerica: 'SUDAMÉRICA', r_Africa: 'ÁFRICA',
   }
@@ -655,7 +665,7 @@ scene.add(starsMesh);
 // ─── CONTINENT OUTLINES ─────────────────────────────
 const coastGroup = new THREE.Group();
 scene.add(coastGroup);
-const coastMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, linewidth: 1 });
+const coastMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, linewidth: 2 });
 
 fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json')
   .then(r => r.json())
@@ -780,7 +790,7 @@ function setGlobeTheme(dark) {
   homeNode.material.color.setHex(fg);
   homeRing.material.color.setHex(fg);
   atmoMat.uniforms.uBright.value = dark ? 0.7 : 0.2;
-  coastGroup.children.forEach(l => { l.material.color.setHex(fg); });
+  coastGroup.children.forEach(l => { l.material.color.setHex(fg); l.material.opacity = 0.85; });
   resultNodes.forEach(n => { n.material.color.setHex(fg); });
   resultRings.forEach(r => { r.material.color.setHex(fg); });
   resultArcs.forEach(group => { group.forEach(a => { if(a.material) a.material.color.setHex(fg); }); });
@@ -995,22 +1005,19 @@ function showResults(data) {
   }
 
   rList.innerHTML = data.map((r, i) => {
-    const viable = r.viability_status === 'VIABLE';
-    const alerts = r.alerts || [];
-    let tags = `<span class="rtag ${viable?'v':'g'}">${r.viability_status||'N/A'}</span>`;
-    if (alerts.includes('NO_EMBASSY_IN_PERU')) tags += `<span class="rtag w">${t('noEmbassy')}</span>`;
-    if (alerts.includes('HIGH_LABOR_PRESSURE')) tags += `<span class="rtag g">${t('pressure')}</span>`;
-    if (alerts.includes('SELF_FUNDING_VIABLE')) tags += `<span class="rtag i">${t('selfFund')}</span>`;
+    const scholName = r.university_scholarship || r.scholarship_providers?.[0] || '—';
+    const covPct = r.coverage_pct != null ? r.coverage_pct + '%' : (r.max_coverage_pct != null ? r.max_coverage_pct + '%' : '—');
+    const stipend = r.stipend_monthly_usd ? '$' + Number(r.stipend_monthly_usd).toLocaleString() + '/mo' : (r.max_stipend_usd ? '$' + Number(r.max_stipend_usd).toLocaleString() : '—');
     return `<div class="rcard${i===0?' active':''}" data-i="${i}" data-pid="${r.program_id}">
       <div class="rk">${r._rank||i+1}</div>
       <div class="rinfo">
         <h4>${r.program_name||''}</h4>
         <div class="runi">${r.university||''} — ${r.city||''}, ${r.country_name||r.country_id||''}</div>
-        <div class="rtags">${tags}</div>
+        <div class="rtags"><span class="rtag v">${scholName}</span><span class="rtag i">${t('coverage')}: ${covPct}</span></div>
       </div>
       <div class="rvci">
-        <div class="rv">${r.vci_usd!=null?'$'+Number(r.vci_usd).toLocaleString():'—'}</div>
-        <div class="rl">VCI</div>
+        <div class="rv">${stipend}</div>
+        <div class="rl">${t('stipend')}</div>
       </div>
     </div>`;
   }).join('');
@@ -1064,37 +1071,59 @@ function openDetail(pid) {
   document.body.style.overflow = 'hidden';
 
   fetch(`/api/program/${pid}`).then(r=>r.json()).then(d => {
-    const gap = d.legal_gap_months;
-    const sClass = d.viability_status === 'VIABLE' ? 'v' : 'g';
-    const sm = d.study_visa_months || 0, em = d.post_study_extension_months || 0;
-    const gm = Math.max(0, gap || 0);
+    const sm = d.study_visa_months || 0;
+    const em = d.post_study_extension_months || 0;
+    const prM = d.months_to_pr || 0;
+    const totalVisa = sm + em;
+    const remaining = Math.max(0, prM - totalVisa);
     const annual = d.tuition_annual_usd ? '$'+Number(d.tuition_annual_usd).toLocaleString() : '—';
     const full = d.full_tuition_usd ? '$'+Number(d.full_tuition_usd).toLocaleString() : '—';
+    const maxHrs = d.max_hours_per_week || '—';
 
+    // ─── TIMELINE ───
+    const tlHtml = `<div class="tl">
+      <div class="tl-b tl-s" style="flex:${sm||1}"><div class="tl-v">${sm}</div><div class="tl-l">${t('study')}</div></div>
+      <div class="tl-arr">+</div>
+      <div class="tl-b tl-e" style="flex:${em||1}"><div class="tl-v">${em}</div><div class="tl-l">${t('postStudy')}</div></div>
+      <div class="tl-arr">+</div>
+      <div class="tl-b tl-s" style="flex:${remaining||1};opacity:.6"><div class="tl-v">?</div><div class="tl-l">${t('workVisa')}</div></div>
+      <div class="tl-arr">&minus;</div>
+      <div class="tl-b tl-e" style="flex:${prM||1}"><div class="tl-v">${prM}</div><div class="tl-l">${t('timeToPR')}</div></div>
+      <div class="tl-arr">=</div>
+      <div class="tl-b ${remaining>0?'tl-g':'tl-s'}" style="flex:${remaining||1}"><div class="tl-v">${remaining}</div><div class="tl-l">${t('remaining')}</div></div>
+    </div>`;
+
+    // ─── SCHOLARSHIPS GRID ───
     let scholHtml = '';
     if (d.scholarships && d.scholarships.length) {
       scholHtml = d.scholarships.map(s => {
-        const types = (s.candidate_type||[]).map(ct=>`<span class="sc-tg">${ct}</span>`).join('');
-        const covers = [];
-        if (s.covers_mobility_expenses) covers.push(`<span class="sc-tg">${t('mobility')}</span>`);
-        if (s.covers_medical_insurance) covers.push(`<span class="sc-tg">${t('medical')}</span>`);
+        const covPct = s.coverage_pct != null ? s.coverage_pct + '%' : '—';
+        const tuitionNum = d.full_tuition_usd || 0;
+        const scholAmount = s.coverage_pct != null && tuitionNum ? '$' + Math.round(tuitionNum * s.coverage_pct / 100).toLocaleString() : (s.annual_stipend_usd ? '$' + Number(s.annual_stipend_usd).toLocaleString() : '—');
+        const costAfter = s.coverage_pct != null && tuitionNum ? '$' + Math.round(tuitionNum * (1 - s.coverage_pct / 100)).toLocaleString() : '—';
+        const workSpec = s.work_specification || (d.max_hours_per_week ? maxHrs + 'h/wk' : '—');
+        const tags = [];
+        if (s.covers_mobility_expenses) tags.push(`<span class="sc-tg">${t('mobility')}</span>`);
+        if (s.covers_medical_insurance) tags.push(`<span class="sc-tg">${t('medical')}</span>`);
+        if (s.monthly_stipend_usd) tags.push(`<span class="sc-tg">${t('stipend')}: $${Number(s.monthly_stipend_usd).toLocaleString()}/mo</span>`);
         return `<div class="sc">
           <h4>${s.scholarship_name}</h4>
           <div class="sc-prov">${s.provider_organization}</div>
           <div class="sc-grid">
-            <div class="sc-s"><div class="sv">${s.coverage_pct!=null?s.coverage_pct+'%':'—'}</div><div class="sl">${t('coverage')}</div></div>
-            <div class="sc-s"><div class="sv">${s.monthly_stipend_usd?'$'+s.monthly_stipend_usd.toLocaleString()+'/mo':'—'}</div><div class="sl">${t('stipend')}</div></div>
-            <div class="sc-s"><div class="sv">${s.annual_stipend_usd?'$'+Number(s.annual_stipend_usd).toLocaleString()+'/yr':'—'}</div><div class="sl">${t('annual')}</div></div>
+            <div class="sc-s"><div class="sv">${covPct}</div><div class="sl">${t('coverage')}</div></div>
+            <div class="sc-s"><div class="sv">${scholAmount}</div><div class="sl">${t('scholAmount')}</div></div>
+            <div class="sc-s"><div class="sv">${costAfter}</div><div class="sl">${t('costAfterSchol')}</div></div>
           </div>
-          <div class="sc-grid" style="margin-top:10px">
+          <div class="sc-grid" style="margin-top:8px">
+            <div class="sc-s"><div class="sv">${d.duration_months||'—'} mo</div><div class="sl">${t('duration')}</div></div>
+            <div class="sc-s"><div class="sv">${workSpec}</div><div class="sl">${t('workAllowed')}</div></div>
             <div class="sc-s"><div class="sv">${s.application_deadline||'—'}</div><div class="sl">${t('deadline')}</div></div>
-            <div class="sc-s"><div class="sv">${s.peru_eligible?t('yes'):'—'}</div><div class="sl">${t('peruEligible')}</div></div>
           </div>
-          <div class="sc-tags">${types}${covers.join('')}</div>
+          <div class="sc-tags">${tags.join('')}</div>
         </div>`;
       }).join('');
     } else {
-      scholHtml = `<p style="color:#333;font-size:12px;font-weight:300">${t('noScholarships')}</p>`;
+      scholHtml = `<p style="color:var(--g1);font-size:12px;font-weight:300">${t('noScholarships')}</p>`;
     }
 
     detContent.innerHTML = `
@@ -1102,35 +1131,15 @@ function openDetail(pid) {
       <h2>${d.program_name}</h2>
       <div class="d-uni">${d.university}</div>
       <div class="d-loc">${d.city}, ${d.country_name} (${d.country_id})</div>
-      <div class="d-badge ${sClass}">${d.viability_status||'UNKNOWN'}</div>
-      <div class="d-grid">
-        <div class="d-m"><div class="dv">${d.vci_usd!=null?'$'+Number(d.vci_usd).toLocaleString():'—'}</div><div class="dl">${t('vciTotal')}</div></div>
+      <div class="d-grid" style="grid-template-columns:repeat(3,1fr)">
         <div class="d-m"><div class="dv">${annual}</div><div class="dl">${t('tuitionYear')}</div></div>
         <div class="d-m"><div class="dv">${full}</div><div class="dl">${t('fullTuition')}</div></div>
         <div class="d-m"><div class="dv">${d.duration_months||'—'} mo</div><div class="dl">${t('duration')}</div></div>
-        <div class="d-m"><div class="dv">${gap!=null?gap:'—'} mo</div><div class="dl">${t('legalGap')}</div></div>
-        <div class="d-m"><div class="dv">${d.employment_months_required||0} mo</div><div class="dl">${t('employmentReq')}</div></div>
-        <div class="d-m"><div class="dv">${d.coverage_ratio_pct!=null?d.coverage_ratio_pct+'%':'—'}</div><div class="dl">${t('coverageRatio')}</div></div>
-        <div class="d-m"><div class="dv">${d.labor_pressure_index!=null?d.labor_pressure_index:'—'}</div><div class="dl">${t('laborPressure')}</div></div>
+        <div class="d-m"><div class="dv">${maxHrs}h/wk</div><div class="dl">${t('workAllowed')}</div></div>
+        <div class="d-m"><div class="dv">${d.language_of_instruction||'English'}</div><div class="dl">${t('language')}</div></div>
+        <div class="d-m"><div class="dv">${d.embassy_in_peru?t('yes'):t('no')}</div><div class="dl">${t('embassy')}</div></div>
       </div>
-      <div class="d-sec"><h3>${t('timeline')}</h3><div class="d-body">
-        <div class="tl">
-          <div class="tl-b tl-s" style="flex:${sm}"><div class="tl-v">${sm}</div><div class="tl-l">${t('study')}</div></div>
-          <div class="tl-arr">&rarr;</div>
-          <div class="tl-b tl-e" style="flex:${em}"><div class="tl-v">${em}</div><div class="tl-l">${t('postStudy')}</div></div>
-          ${gm>0?`<div class="tl-arr">&rarr;</div><div class="tl-b tl-g" style="flex:${gm}"><div class="tl-v">${gm}</div><div class="tl-l">${t('gap')}</div></div>`:''}
-          <div class="tl-arr">&rarr;</div>
-          <div style="font-size:11px;font-weight:900;letter-spacing:2px;padding:14px">PR</div>
-        </div>
-      </div></div>
-      <div class="d-sec"><h3>${t('countryImmigration')}</h3><div class="d-body">
-        <div class="d-grid">
-          <div class="d-m"><div class="dv">${d.months_to_pr||'—'} mo</div><div class="dl">${t('timeToPR')}</div></div>
-          <div class="d-m"><div class="dv">${d.max_hours_per_week||'—'}h/wk</div><div class="dl">${t('workAllowed')}</div></div>
-          <div class="d-m"><div class="dv">${d.solvency_buffer_usd?'$'+Number(d.solvency_buffer_usd).toLocaleString()+'/yr':'—'}</div><div class="dl">${t('solvencyBuffer')}</div></div>
-          <div class="d-m"><div class="dv">${d.embassy_in_peru?t('yes'):t('no')}</div><div class="dl">${t('embassy')}</div></div>
-        </div>
-      </div></div>
+      <div class="d-sec"><h3>${t('timeline')}</h3><div class="d-body">${tlHtml}</div></div>
       <div class="d-sec"><h3>${t('scholarships')} (${d.scholarships?d.scholarships.length:0})</h3><div class="d-body">${scholHtml}</div></div>
       <div class="d-sec"><h3>${t('recommendation')}</h3><div class="d-body">
         <div class="rec-box"><p>${d.recommended_action||t('noRecommendation')}</p></div>
