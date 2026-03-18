@@ -385,10 +385,15 @@ def search_programs(keyword=None, degree_levels=None, country_ids=None):
            v.legal_gap_months, v.viability_status, v.vci_usd, v.vci_rank,
            v.employment_months_required, v.coverage_ratio_pct,
            v.labor_pressure_index, v.alerts, v.recommended_action,
-           v.embassy_warning, v.deadline_urgent, v.scholarship_id as best_scholarship_id
+           v.embassy_warning, v.deadline_urgent, v.scholarship_id as best_scholarship_id,
+           bs.scholarship_name as best_scholarship_name,
+           bs.coverage_pct as best_coverage_pct,
+           bs.monthly_stipend_usd as best_stipend_monthly,
+           bs.annual_stipend_usd as best_stipend_annual
     FROM programs p
     JOIN countries c ON p.country_id = c.country_id
     LEFT JOIN viability_pathways v ON v.program_id = p.program_id
+    LEFT JOIN scholarships bs ON bs.scholarship_id = v.scholarship_id
     """
 
     conditions = []
@@ -452,10 +457,15 @@ def search_programs_by_ids(program_ids, degree_levels=None, country_ids=None):
            v.legal_gap_months, v.viability_status, v.vci_usd, v.vci_rank,
            v.employment_months_required, v.coverage_ratio_pct,
            v.labor_pressure_index, v.alerts, v.recommended_action,
-           v.embassy_warning, v.deadline_urgent, v.scholarship_id as best_scholarship_id
+           v.embassy_warning, v.deadline_urgent, v.scholarship_id as best_scholarship_id,
+           bs.scholarship_name as best_scholarship_name,
+           bs.coverage_pct as best_coverage_pct,
+           bs.monthly_stipend_usd as best_stipend_monthly,
+           bs.annual_stipend_usd as best_stipend_annual
     FROM programs p
     JOIN countries c ON p.country_id = c.country_id
     LEFT JOIN viability_pathways v ON v.program_id = p.program_id
+    LEFT JOIN scholarships bs ON bs.scholarship_id = v.scholarship_id
     WHERE p.program_id IN ({placeholders})
     """
     params = list(program_ids)

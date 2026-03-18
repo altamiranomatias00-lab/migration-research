@@ -1005,9 +1005,9 @@ function showResults(data) {
   }
 
   rList.innerHTML = data.map((r, i) => {
-    const scholName = r.university_scholarship || r.scholarship_providers?.[0] || '—';
-    const covPct = r.coverage_pct != null ? r.coverage_pct + '%' : (r.max_coverage_pct != null ? r.max_coverage_pct + '%' : '—');
-    const stipend = r.stipend_monthly_usd ? '$' + Number(r.stipend_monthly_usd).toLocaleString() + '/mo' : (r.max_stipend_usd ? '$' + Number(r.max_stipend_usd).toLocaleString() : '—');
+    const scholName = r.best_scholarship_name || r.university_scholarship || '—';
+    const covPct = r.best_coverage_pct != null ? r.best_coverage_pct + '%' : (r.coverage_pct != null ? r.coverage_pct + '%' : '—');
+    const stipend = r.best_stipend_monthly ? '$' + Number(r.best_stipend_monthly).toLocaleString() + '/mo' : (r.best_stipend_annual ? '$' + Math.round(r.best_stipend_annual/12).toLocaleString() + '/mo' : '—');
     return `<div class="rcard${i===0?' active':''}" data-i="${i}" data-pid="${r.program_id}">
       <div class="rk">${r._rank||i+1}</div>
       <div class="rinfo">
