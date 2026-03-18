@@ -729,7 +729,7 @@ scene.add(starsMesh);
 // ─── CONTINENT OUTLINES ─────────────────────────────
 const coastGroup = new THREE.Group();
 scene.add(coastGroup);
-const coastMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, linewidth: 2 });
+const coastMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
 
 fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json')
   .then(r => r.json())
@@ -761,7 +761,7 @@ fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json')
         const pts = [];
         ring.forEach(arcIdx => {
           decodeArc(arcIdx).forEach(([lat, lng]) => {
-            pts.push(ll2v(lat, lng, GLOBE_R + 0.025));
+            pts.push(ll2v(lat, lng, GLOBE_R + 0.04));
           });
         });
         if (pts.length > 1) {
