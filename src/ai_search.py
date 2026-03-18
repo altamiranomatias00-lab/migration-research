@@ -362,6 +362,7 @@ FORMAT RULES:
 
 
 def ai_search(keyword: str, degree_levels: list[str], country_ids: list[str] | None = None, lang: str = "en") -> dict | None:
+  try:
     if not GEMINI_API_KEY or not _client:
         return None
 
@@ -423,4 +424,7 @@ def ai_search(keyword: str, degree_levels: list[str], country_ids: list[str] | N
         result = _validate_and_postprocess(result, raw_degree)
         return result
 
+    return None
+  except Exception as e:
+    print(f"[AI] FATAL: {type(e).__name__}: {e}", flush=True)
     return None
