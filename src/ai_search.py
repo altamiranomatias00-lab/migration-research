@@ -155,8 +155,22 @@ def _validate_and_postprocess(result: dict, degree_level: str) -> dict | None:
         print("[AI] Validation failed: no countries and no programs returned", flush=True)
         return None
 
+    # Filter out countries with suspicious/missing immigration data
+    valid_countries = []
     for country in result["countries"]:
         _fill_defaults(country, _COUNTRY_REQUIRED)
+        mpr = country.get("months_to_pr")
+        svm = country.get("study_visa_months")
+        # Reject if months_to_pr is 0, negative, or missing — it means no real PR pathway
+        if mpr is not None and mpr <= 0:
+            print(f"[AI] Rejected country {country.get('country_id')}: months_to_pr={mpr}", flush=True)
+            continue
+        if mpr is None and svm is None:
+            print(f"[AI] Rejected country {country.get('country_id')}: no immigration data", flush=True)
+            continue
+        valid_countries.append(country)
+    result["countries"] = valid_countries
+    valid_country_ids = {c["country_id"] for c in valid_countries}
 
     for program in result["programs"]:
         defaults = {**_PROGRAM_REQUIRED, "degree_level": degree_level}
@@ -165,6 +179,13 @@ def _validate_and_postprocess(result: dict, degree_level: str) -> dict | None:
             uni_slug = program.get("university", "unknown").lower().replace(" ", "-")[:30]
             prog_slug = program.get("program_name", "unknown").lower().replace(" ", "-")[:30]
             program["program_id"] = f"{uni_slug}-{prog_slug}"
+        # Validate program_url — must start with http
+        url = program.get("program_url", "")
+        if url and not url.startswith("http"):
+            program["program_url"] = f"https://{url}"
+
+    # Remove programs from rejected countries
+    result["programs"] = [p for p in result["programs"] if p.get("country_id") in valid_country_ids]
 
     for scholarship in result["scholarships"]:
         _fill_defaults(scholarship, _SCHOLARSHIP_REQUIRED)
@@ -172,6 +193,10 @@ def _validate_and_postprocess(result: dict, degree_level: str) -> dict | None:
             org_slug = scholarship.get("provider_organization", "unknown").lower().replace(" ", "-")[:30]
             name_slug = scholarship.get("scholarship_name", "unknown").lower().replace(" ", "-")[:30]
             scholarship["scholarship_id"] = f"{org_slug}-{name_slug}"
+        # Validate scholarship_url
+        url = scholarship.get("scholarship_url", "")
+        if url and not url.startswith("http"):
+            scholarship["scholarship_url"] = f"https://{url}"
 
     print(f"[AI] Post-processed: {len(result['programs'])} programs, "
           f"{len(result['countries'])} countries, "
@@ -307,22 +332,31 @@ MANDATORY RULES (NEVER SKIP):
 - For each program, include at least 1 applicable scholarship if one exists
 - Only include scholarships where Peru is eligible (or likely eligible as a developing country)
 - Focus on well-ranked, reputable universities
+- NEVER include countries where there is NO clear legal pathway from student visa to permanent residency (e.g. most African countries, many Middle Eastern countries). Only include countries with ESTABLISHED immigration pathways for international graduates.
+- If you are NOT SURE about a country's immigration data (months_to_pr, visa durations, etc.), DO NOT include that country. It's better to return fewer, accurate results than many unreliable ones.
 
 DATA QUALITY — ALL FIELDS MANDATORY:
 - EVERY country MUST have: country_id, country_name, region, months_to_pr, study_visa_months, post_study_extension_months, solvency_buffer_usd, work_permit_allowed, max_hours_per_week, embassy_in_peru, link_pr, link_study_visa, link_visa_extension, link_work_permit
-- EVERY program MUST have: program_id, program_name, university, city, country_id, faculty_or_department, duration_months, language_of_instruction, full_tuition_usd (total cost for full program, NOT per semester), program_url (real working URL)
-- EVERY scholarship MUST have: scholarship_id, scholarship_name, provider_organization, candidate_type, coverage_pct, monthly_stipend_usd, covers_mobility_expenses, covers_medical_insurance, application_deadline, scholarship_url (real working URL), applicable_program_ids, eligible_country_ids, peru_eligible
-- ALL URLs must be real, official, working URLs from the actual institution/organization websites
+- EVERY program MUST have: program_id, program_name, university, city, country_id, faculty_or_department, duration_months, language_of_instruction, full_tuition_usd (total cost for full program, NOT per semester), program_url
+- EVERY scholarship MUST have: scholarship_id, scholarship_name, provider_organization, candidate_type, coverage_pct, monthly_stipend_usd, covers_mobility_expenses, covers_medical_insurance, application_deadline, scholarship_url, applicable_program_ids, eligible_country_ids, peru_eligible
 - ALL financial data must be in USD and reflect current/latest available figures
 - full_tuition_usd = TOTAL cost for the entire program duration (not annual, not per semester)
 - solvency_buffer_usd = annual amount required to prove financial solvency
 - If you don't know a value with certainty, use your best estimate and add the field to unverified_fields. NEVER leave a field as null if you can estimate it.
 
+URL RULES (CRITICAL — NEVER BREAK):
+- program_url MUST be a real URL from the university's official domain (e.g. https://www.tum.de/..., https://www.mcgill.ca/...)
+- Use the university's main program catalog or admissions page if you don't know the exact program page
+- NEVER invent or guess a URL. If unsure, use the university's homepage + /programs or /admissions
+- scholarship_url MUST be a real URL from the scholarship provider's official website
+- link_pr, link_study_visa, link_visa_extension, link_work_permit MUST be from official government immigration websites
+
 FORMAT RULES:
-- country_name must be in SPANISH (Suecia, not Sweden)
+- country_name MUST be in SPANISH (Suecia, not Sweden; Alemania, not Germany; Canadá, not Canada)
+- region MUST be in SPANISH (Europa, América del Norte, Oceanía, Asia, América del Sur, África)
+- faculty_or_department MUST be in SPANISH (Escuela de Negocios, Facultad de Ingeniería, Departamento de Ciencias de la Computación, etc.)
 - provider_organization must be one of: Gobierno Federal, Gobierno Estatal, Organización Internacional, Universidad Pública, Universidad Privada
 - candidate_type values must be from: Excelencia académica, Liderazgo, País en desarrollo
-- faculty_or_department must be in SPANISH (Escuela de Negocios, Facultad de Ingeniería, etc.)
 - All applicable_program_ids MUST reference actual program_ids from the programs array
 - All eligible_country_ids MUST reference actual country_ids from the countries array"""
 
@@ -347,7 +381,9 @@ def ai_search(keyword: str, degree_levels: list[str], country_ids: list[str] | N
     )
 
     if lang == "es":
-        prompt += "\n\nIMPORTANT: The user is searching in Spanish. Return country_name and faculty_or_department in Spanish. Program names should remain in their original language (usually English)."
+        prompt += "\n\nIMPORTANT — SPANISH MODE: The user is searching in Spanish. These fields MUST be in Spanish: country_name (Alemania, Canadá, Suecia...), region (Europa, América del Norte...), faculty_or_department (Facultad de Ingeniería, Escuela de Negocios...). Program names and university names should remain in their ORIGINAL language. provider_organization and candidate_type are already defined in Spanish above — use those exact values."
+    else:
+        prompt += "\n\nNOTE: Even in English mode, country_name, region, faculty_or_department, provider_organization, and candidate_type MUST still be in SPANISH as specified in the format rules above. Only the UI labels change, not the data language."
 
     print(f"[AI] Calling Gemini API...", flush=True)
 
