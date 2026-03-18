@@ -1,0 +1,74 @@
+[
+  {
+    "country_id": "DE",
+    "country_name": "Germany",
+    "months_to_pr": 21,
+    "study_visa_months": 24,
+    "post_study_extension_months": 18,
+    "solvency_buffer_usd": 11904,
+    "work_permit_allowed": true,
+    "max_hours_per_week": 20,
+    "embassy_in_peru": true,
+    "source_urls": {
+      "study_visa": "https://www.make-it-in-germany.com/en/visa-residence/types/studying",
+      "job_search_permit": "https://www.make-it-in-germany.com/en/visa-residence/types/job-search-graduates",
+      "work_permit": "https://www.make-it-in-germany.com/en/visa-residence/types/eu-blue-card",
+      "permanent_residency": "https://www.make-it-in-germany.com/en/visa-residence/living-permanently/settlement-permit"
+    },
+    "unverified_fields": []
+  },
+  {
+    "country_id": "NL",
+    "country_name": "Netherlands",
+    "months_to_pr": 60,
+    "study_visa_months": 24,
+    "post_study_extension_months": 12,
+    "solvency_buffer_usd": 12800,
+    "work_permit_allowed": true,
+    "max_hours_per_week": 16,
+    "embassy_in_peru": true,
+    "source_urls": {
+      "study_visa": "https://ind.nl/en/residence-permits/study/residence-permit-for-study",
+      "job_search_permit": "https://ind.nl/en/residence-permits/work/orientation-year-highly-educated-persons",
+      "work_permit": "https://ind.nl/en/residence-permits/work/highly-skilled-migrant",
+      "permanent_residency": "https://ind.nl/en/residence-permits/permanent-residence-permit"
+    },
+    "unverified_fields": []
+  },
+  {
+    "country_id": "CA",
+    "country_name": "Canada",
+    "months_to_pr": 18,
+    "study_visa_months": 24,
+    "post_study_extension_months": 36,
+    "solvency_buffer_usd": 15000,
+    "work_permit_allowed": true,
+    "max_hours_per_week": 24,
+    "embassy_in_peru": true,
+    "source_urls": {
+      "study_visa": "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/study-permit.html",
+      "job_search_permit": "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/work/after-graduation/about.html",
+      "work_permit": "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/work/after-graduation.html",
+      "permanent_residency": "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry.html"
+    },
+    "unverified_fields": []
+  },
+  {
+    "country_id": "AU",
+    "country_name": "Australia",
+    "months_to_pr": 48,
+    "study_visa_months": 24,
+    "post_study_extension_months": 24,
+    "solvency_buffer_usd": 16000,
+    "work_permit_allowed": true,
+    "max_hours_per_week": 48,
+    "embassy_in_peru": false,
+    "source_urls": {
+      "study_visa": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/student-500",
+      "job_search_permit": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/temporary-graduate-485",
+      "work_permit": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/temporary-graduate-485",
+      "permanent_residency": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/skilled-independent-189"
+    },
+    "unverified_fields": []
+  }
+]

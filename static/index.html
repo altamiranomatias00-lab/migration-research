@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Migration Pathway Explorer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root,body[data-theme="dark"]{
+  --bg:#000;--fg:#FAFAFA;--fg2:#ccc;--g1:#888;--g2:#444;--g3:#222;--g4:#111;
+  --glass:rgba(17,17,17,.85);--glass2:rgba(0,0,0,.88);--glass3:rgba(0,0,0,.94);
+  --border:#222;--border2:#1a1a1a;--card:#111;--hover:rgba(255,255,255,.03);
+  --active:rgba(255,255,255,.05);--chip-on:rgba(255,255,255,.06);
+  --badge-v:#FAFAFA;--badge-g:#888;
+  --tl-s:rgba(255,255,255,.08);--tl-e:rgba(255,255,255,.04);--tl-g:rgba(255,255,255,.02);
+}
+body[data-theme="light"]{
+  --bg:#F5F5F5;--fg:#0A0A0A;--fg2:#333;--g1:#777;--g2:#aaa;--g3:#ddd;--g4:#eee;
+  --glass:rgba(255,255,255,.88);--glass2:rgba(245,245,245,.92);--glass3:rgba(245,245,245,.96);
+  --border:#ddd;--border2:#e5e5e5;--card:#fff;--hover:rgba(0,0,0,.02);
+  --active:rgba(0,0,0,.04);--chip-on:rgba(0,0,0,.06);
+  --badge-v:#0A0A0A;--badge-g:#888;
+  --tl-s:rgba(0,0,0,.06);--tl-e:rgba(0,0,0,.04);--tl-g:rgba(0,0,0,.02);
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--fg);overflow:hidden;height:100vh;width:100vw;transition:background .4s,color .4s}
+canvas#globe{position:fixed;inset:0;z-index:0}
+
+/* LOGO */
+#logo{position:fixed;top:24px;left:28px;z-index:150;display:flex;align-items:center;gap:10px;
+user-select:none;pointer-events:none}
+#logo svg{width:32px;height:32px}
+#logo .logo-text{font-size:11px;font-weight:900;letter-spacing:5px;text-transform:uppercase;
+color:var(--fg);opacity:.7;transition:color .3s,opacity .3s}
+
+/* TOP-RIGHT CONTROLS */
+.top-controls{position:fixed;top:24px;right:24px;z-index:150;display:flex;gap:10px;align-items:center}
+.ctrl-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);
+background:var(--glass);backdrop-filter:blur(12px);cursor:pointer;
+display:flex;align-items:center;justify-content:center;transition:all .3s}
+.ctrl-btn:hover{border-color:var(--g1)}
+.ctrl-btn svg{width:18px;height:18px;stroke:var(--fg);fill:none;stroke-width:1.5;transition:stroke .3s}
+#langToggle{font-family:'Inter',sans-serif;font-size:11px;font-weight:900;letter-spacing:1px;
+color:var(--fg);width:auto;padding:0 14px;border-radius:22px}
+
+/* SEARCH BUBBLE */
+#searchBubble{position:fixed;bottom:40px;left:50%;transform:translateX(-50%);z-index:100;
+display:flex;align-items:center;gap:12px;background:var(--glass);
+backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:60px;padding:8px 8px 8px 24px;
+transition:all .5s cubic-bezier(.25,.8,.25,1),opacity .3s,width .5s,max-width .5s,padding .5s,border-radius .5s;max-width:600px;width:90%}
+#searchBubble.expanded{border-radius:24px;max-width:700px;flex-wrap:wrap;padding:16px 20px;
+align-items:flex-start;bottom:24px}
+/* Collapsed: tiny floating lupa */
+#searchBubble.collapsed{max-width:52px;width:52px;padding:0;border-radius:50%;height:52px;
+justify-content:center;gap:0;bottom:32px;left:32px;transform:none;cursor:pointer}
+#searchBubble.collapsed #searchQ,
+#searchBubble.collapsed #searchBtn,
+#searchBubble.collapsed .filters-row{display:none!important}
+#searchBubble.collapsed .lupa{opacity:.7;width:22px;height:22px}
+#searchBubble.collapsed .lupa svg{width:22px;height:22px}
+#searchBubble.collapsed:hover{border-color:var(--g1);box-shadow:0 0 20px rgba(255,255,255,.08)}
+#searchBubble .lupa{width:20px;height:20px;opacity:.5;flex-shrink:0;cursor:pointer}
+#searchBubble .lupa svg{width:20px;height:20px}
+#searchQ{flex:1;min-width:180px;background:none;border:none;color:var(--fg);font-family:inherit;
+font-size:15px;font-weight:300;letter-spacing:.5px;outline:none}
+#searchQ::placeholder{color:var(--g2);letter-spacing:2px;font-weight:300}
+#searchBtn{background:var(--fg);color:var(--bg);border:none;border-radius:40px;padding:10px 28px;
+font-family:inherit;font-size:11px;font-weight:900;letter-spacing:3px;text-transform:uppercase;
+cursor:pointer;transition:opacity .15s;flex-shrink:0}
+#searchBtn:hover{opacity:.85}
+#searchBtn:disabled{opacity:.4;cursor:not-allowed}
+
+/* FILTERS ROW */
+.filters-row{display:none;width:100%;padding-top:12px;gap:20px;flex-wrap:wrap;align-items:center}
+#searchBubble.expanded .filters-row{display:flex}
+.filter-grp{display:flex;align-items:center;gap:8px}
+.f-label{font-size:9px;font-weight:400;letter-spacing:2px;text-transform:uppercase;color:var(--g1);white-space:nowrap}
+.chip{padding:5px 12px;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+border:1px solid var(--border);background:transparent;color:var(--g1);cursor:pointer;border-radius:20px;
+transition:all .15s;user-select:none}
+.chip:hover{border-color:var(--g1)}
+.chip.on{border-color:var(--fg);color:var(--fg);background:var(--chip-on)}
+.region-chips{display:flex;gap:4px;flex-wrap:wrap}
+.country-tags{display:flex;gap:4px;flex-wrap:wrap;max-width:400px}
+.ctag{padding:3px 8px;font-size:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
+border:1px solid var(--border);background:transparent;color:var(--g1);cursor:pointer;border-radius:12px;
+transition:all .15s;user-select:none}
+.ctag:hover{border-color:var(--g1)}
+.ctag.on{border-color:var(--fg);color:var(--fg);background:var(--chip-on)}
+
+/* RESULTS PANEL */
+#resultsPanel{position:fixed;right:0;top:0;bottom:0;width:420px;z-index:90;
+background:var(--glass2);backdrop-filter:blur(16px);border-left:1px solid var(--border2);
+transform:translateX(100%);transition:transform .5s cubic-bezier(.25,.8,.25,1);
+overflow-y:auto;-webkit-overflow-scrolling:touch}
+#resultsPanel.open{transform:translateX(0)}
+.r-head{padding:32px 28px 16px;border-bottom:1px solid var(--border2);display:flex;
+justify-content:space-between;align-items:center}
+.r-count{font-size:10px;font-weight:400;letter-spacing:3px;text-transform:uppercase;color:var(--g1)}
+.r-count span{color:var(--fg);font-weight:700}
+.r-close{background:none;border:none;color:var(--g2);font-size:24px;cursor:pointer;
+font-family:inherit;transition:color .15s}
+.r-close:hover{color:var(--fg)}
+.r-list{padding:8px 0}
+
+/* RESULT CARD */
+.rcard{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:16px;
+padding:20px 28px;cursor:pointer;transition:all .15s;border-left:3px solid transparent}
+.rcard:hover{background:var(--hover)}
+.rcard.active{background:var(--active);border-left-color:var(--fg)}
+.rcard .rk{font-size:24px;font-weight:900;color:var(--border);letter-spacing:-1px}
+.rcard.active .rk,.rcard:nth-child(-n+3) .rk{color:var(--fg)}
+.rcard .rinfo h4{font-size:13px;font-weight:700;letter-spacing:-.1px;margin-bottom:2px}
+.rcard .rinfo .runi{font-size:11px;font-weight:300;color:var(--g1)}
+.rcard .rinfo .rtags{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.rtag{font-size:7px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+padding:2px 6px;border:1px solid}
+.rtag.v{color:var(--badge-v);border-color:var(--badge-v)}
+.rtag.g{color:var(--badge-g);border-color:var(--badge-g)}
+.rtag.w{color:var(--g1);border-color:var(--g1)}
+.rtag.i{color:var(--g1);border-color:var(--g1)}
+.rcard .rvci{text-align:right}
+.rcard .rvci .rv{font-size:16px;font-weight:900;letter-spacing:-.5px}
+.rcard .rvci .rl{font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--g2)}
+
+/* DETAIL OVERLAY */
+#detailOverlay{position:fixed;inset:0;z-index:200;background:var(--glass3);
+display:none;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#detailOverlay.open{display:block}
+.det{max-width:880px;margin:0 auto;padding:60px 48px 120px}
+.det-close{position:fixed;top:24px;right:32px;font-size:32px;font-weight:300;
+color:var(--g2);cursor:pointer;z-index:201;background:none;border:none;font-family:inherit;
+transition:color .15s}
+.det-close:hover{color:var(--fg)}
+.det h2{font-size:38px;font-weight:900;letter-spacing:-2px;line-height:1.05}
+.det .d-uni{font-size:15px;font-weight:300;color:var(--g1);margin-top:4px}
+.det .d-loc{font-size:11px;font-weight:400;color:var(--g2);margin-top:3px;letter-spacing:2px;text-transform:uppercase}
+.d-badge{display:inline-block;margin-top:14px;padding:6px 18px;font-size:10px;font-weight:900;
+letter-spacing:3px;text-transform:uppercase;border:1px solid}
+.d-badge.v{color:var(--fg);border-color:var(--fg)}
+.d-badge.g{color:var(--g1);border-color:var(--g1)}
+.d-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-top:36px}
+.d-m{background:var(--card);padding:20px}
+.d-m .dv{font-size:24px;font-weight:900;letter-spacing:-1px}
+.d-m .dl{font-size:8px;font-weight:400;letter-spacing:2.5px;text-transform:uppercase;color:var(--g1);margin-top:3px}
+.d-sec{margin-top:44px}
+.d-sec h3{font-size:10px;font-weight:700;letter-spacing:4px;text-transform:uppercase;
+color:var(--g1);padding-bottom:10px;border-bottom:1px solid var(--border2)}
+.d-sec .d-body{margin-top:16px}
+.tl{display:flex;align-items:center;gap:0;margin-top:16px}
+.tl-b{padding:14px 18px;text-align:center}
+.tl-b .tl-v{font-size:18px;font-weight:900;letter-spacing:-.5px}
+.tl-b .tl-l{font-size:7px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-top:2px}
+.tl-s{background:var(--tl-s);color:var(--fg)}
+.tl-e{background:var(--tl-e);color:var(--fg2)}
+.tl-g{background:var(--tl-g);color:var(--g1)}
+.tl-arr{font-size:16px;color:var(--g2);padding:0 3px}
+.sc{background:var(--card);padding:24px 28px;margin-bottom:3px}
+.sc h4{font-size:14px;font-weight:700;letter-spacing:-.1px}
+.sc .sc-prov{font-size:11px;font-weight:300;color:var(--g1);margin-top:1px}
+.sc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.sc-s .sv{font-size:18px;font-weight:900;letter-spacing:-.5px}
+.sc-s .sl{font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--g1);margin-top:1px}
+.sc-tags{display:flex;gap:5px;margin-top:10px;flex-wrap:wrap}
+.sc-tg{font-size:7px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+padding:2px 7px;background:var(--hover);color:var(--g1)}
+.rec-box{background:var(--card);border-left:3px solid var(--fg);padding:20px 24px;margin-top:16px}
+.rec-box p{font-size:12px;font-weight:300;line-height:1.7;color:var(--fg2);letter-spacing:.2px}
+.d-link{display:inline-block;margin-top:20px;padding:10px 28px;border:1px solid var(--fg);
+color:var(--fg);text-decoration:none;font-size:9px;font-weight:700;letter-spacing:3px;
+text-transform:uppercase;transition:all .15s}
+.d-link:hover{background:var(--fg);color:var(--bg)}
+
+/* LOADING */
+.spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--fg);
+border-radius:50%;animation:spin .6s linear infinite;margin:40px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ai-indicator{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:110;
+background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:14px 28px;
+font-size:11px;font-weight:300;letter-spacing:1.5px;color:var(--g1);display:none;text-align:center;
+max-width:440px;line-height:1.6;backdrop-filter:blur(12px)}
+.ai-indicator.show{display:block}
+#aiPhrase{transition:opacity .4s;display:block;margin-top:4px}
+.ai-indicator .pulse{display:inline-block;width:8px;height:8px;border-radius:50%;
+background:var(--fg);margin-right:8px;animation:pulse 1.2s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  #resultsPanel{width:100%;border-left:none;border-top:1px solid #1a1a1a}
+  .d-grid{grid-template-columns:repeat(2,1fr)}
+  .sc-grid{grid-template-columns:1fr 1fr}
+  .det{padding:40px 20px 80px}
+  .det h2{font-size:28px}
+  #searchBubble{bottom:16px;max-width:95%}
+}
+</style>
+</head>
+<body data-theme="dark">
+<canvas id="globe"></canvas>
+
+<!-- LOGO -->
+<div id="logo">
+  <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:26px;height:26px;opacity:.6">
+    <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="0.8"/>
+    <ellipse cx="16" cy="16" rx="6" ry="14" stroke="currentColor" stroke-width="0.6" opacity=".5"/>
+    <ellipse cx="16" cy="16" rx="11" ry="14" stroke="currentColor" stroke-width="0.5" opacity=".3"/>
+    <line x1="2" y1="16" x2="30" y2="16" stroke="currentColor" stroke-width="0.5" opacity=".4"/>
+    <line x1="2" y1="10" x2="30" y2="10" stroke="currentColor" stroke-width="0.4" opacity=".25"/>
+    <line x1="2" y1="22" x2="30" y2="22" stroke="currentColor" stroke-width="0.4" opacity=".25"/>
+  </svg>
+  <span class="logo-text">LOGO</span>
+</div>
+
+<!-- TOP-RIGHT CONTROLS -->
+<div class="top-controls">
+  <button id="langToggle" class="ctrl-btn" title="Switch language">EN</button>
+  <button id="themeToggle" class="ctrl-btn" title="Toggle theme">
+    <svg id="themeIcon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+  </button>
+</div>
+
+<!-- AI INDICATOR -->
+<div class="ai-indicator" id="aiIndicator">
+  <span class="pulse"></span>
+  <span id="aiPhrase">RESEARCHING WITH AI...</span>
+</div>
+
+<!-- SEARCH BUBBLE -->
+<div id="searchBubble">
+  <div class="lupa" id="lupaBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></div>
+  <input type="text" id="searchQ" placeholder="SEARCH PROGRAMS...">
+  <button id="searchBtn">SEARCH</button>
+  <div class="filters-row">
+    <div class="filter-grp">
+      <span class="f-label">Degree</span>
+      <span class="chip" data-d="bachelors">BSc</span>
+      <span class="chip on" data-d="masters">MSc</span>
+      <span class="chip" data-d="doctorate">PhD</span>
+    </div>
+    <div class="filter-grp">
+      <span class="f-label">Region</span>
+      <div class="region-chips" id="regionChips"></div>
+    </div>
+    <div class="filter-grp" id="countryGrp" style="display:none">
+      <span class="f-label">Countries</span>
+      <div class="country-tags" id="countryTags"></div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS PANEL -->
+<div id="resultsPanel">
+  <div class="r-head">
+    <div class="r-count"><span id="rCount">0</span> pathways</div>
+    <button class="r-close" id="rClose">&times;</button>
+  </div>
+  <div class="r-list" id="rList"></div>
+</div>
+
+<!-- DETAIL OVERLAY -->
+<div id="detailOverlay">
+  <div class="det" id="detContent"></div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ─── i18n ────────────────────────────────────────────
+let lang = 'en';
+const T = {
+  en: {
+    searchPlaceholder: 'SEARCH PROGRAMS...',
+    searchBtn: 'SEARCH',
+    degree: 'Degree',
+    region: 'Region',
+    countries: 'Countries',
+    pathways: 'pathways',
+    noPathways: 'NO PATHWAYS FOUND',
+    aiIndicator: 'RESEARCHING WITH AI...',
+    vci: 'VCI',
+    coverage: 'Coverage',
+    stipend: 'Stipend',
+    annual: 'Annual',
+    deadline: 'Deadline',
+    peruEligible: 'Peru Eligible',
+    vciTotal: 'VCI Total',
+    tuitionYear: 'Tuition / Year',
+    fullTuition: 'Full Tuition',
+    duration: 'Duration',
+    legalGap: 'Legal Gap',
+    employmentReq: 'Employment Req',
+    coverageRatio: 'Coverage Ratio',
+    laborPressure: 'Labor Pressure',
+    timeline: 'Immigration Timeline',
+    study: 'Study (mo)',
+    postStudy: 'Post-Study (mo)',
+    gap: 'Gap (mo)',
+    countryImmigration: 'Country — Immigration',
+    timeToPR: 'Time to PR',
+    workAllowed: 'Work Allowed',
+    solvencyBuffer: 'Solvency Buffer',
+    embassy: 'Embassy in Peru',
+    scholarships: 'Scholarships',
+    recommendation: 'Recommendation',
+    noRecommendation: 'No recommendation available.',
+    noScholarships: 'No scholarships found.',
+    visitProgram: 'Visit Program',
+    yes: 'YES', no: 'NO',
+    noEmbassy: 'NO EMBASSY',
+    pressure: 'PRESSURE',
+    selfFund: 'SELF-FUND',
+    mobility: 'MOBILITY',
+    medical: 'MEDICAL',
+    r_Europe: 'EUROPE', r_NorthAmerica: 'NORTH AMERICA', r_Oceania: 'OCEANIA',
+    r_Asia: 'ASIA', r_SouthAmerica: 'SOUTH AMERICA', r_Africa: 'AFRICA',
+  },
+  es: {
+    searchPlaceholder: 'BUSCAR PROGRAMAS...',
+    searchBtn: 'BUSCAR',
+    degree: 'Grado',
+    region: 'Región',
+    countries: 'Países',
+    pathways: 'rutas',
+    noPathways: 'NO SE ENCONTRARON RUTAS',
+    aiIndicator: 'INVESTIGANDO CON IA...',
+    vci: 'VCI',
+    coverage: 'Cobertura',
+    stipend: 'Estipendio',
+    annual: 'Anual',
+    deadline: 'Fecha límite',
+    peruEligible: 'Elegible Perú',
+    vciTotal: 'VCI Total',
+    tuitionYear: 'Matrícula / Año',
+    fullTuition: 'Matrícula Total',
+    duration: 'Duración',
+    legalGap: 'Brecha Legal',
+    employmentReq: 'Empleo Requerido',
+    coverageRatio: 'Ratio Cobertura',
+    laborPressure: 'Presión Laboral',
+    timeline: 'Línea Migratoria',
+    study: 'Estudio (m)',
+    postStudy: 'Post-Estudio (m)',
+    gap: 'Brecha (m)',
+    countryImmigration: 'País — Inmigración',
+    timeToPR: 'Tiempo a RP',
+    workAllowed: 'Trabajo Permitido',
+    solvencyBuffer: 'Colchón Solvencia',
+    embassy: 'Embajada en Perú',
+    scholarships: 'Becas',
+    recommendation: 'Recomendación',
+    noRecommendation: 'Sin recomendación disponible.',
+    noScholarships: 'No se encontraron becas.',
+    visitProgram: 'Ver Programa',
+    yes: 'SÍ', no: 'NO',
+    noEmbassy: 'SIN EMBAJADA',
+    pressure: 'PRESIÓN',
+    selfFund: 'AUTOFINANC.',
+    mobility: 'MOVILIDAD',
+    medical: 'MÉDICO',
+    r_Europe: 'EUROPA', r_NorthAmerica: 'NORTEAMÉRICA', r_Oceania: 'OCEANÍA',
+    r_Asia: 'ASIA', r_SouthAmerica: 'SUDAMÉRICA', r_Africa: 'ÁFRICA',
+  }
+};
+function t(key) { return T[lang][key] || T['en'][key] || key; }
+
+// ─── LOADING PHRASES ────────────────────────────────
+const PHRASES = {
+  en: [
+    'A BRIGHTER FUTURE IS JUST SECONDS AWAY...',
+    'SCANNING THE BEST UNIVERSITIES WORLDWIDE...',
+    'YOUR NEXT CHAPTER STARTS HERE...',
+    'FINDING PATHS TO PERMANENT RESIDENCY...',
+    'EVERY GREAT JOURNEY BEGINS WITH A SINGLE SEARCH...',
+    'MATCHING YOU WITH SCHOLARSHIPS ACROSS THE GLOBE...',
+    'THE WORLD IS FULL OF POSSIBILITIES...',
+    'BUILDING YOUR MIGRATION ROADMAP...',
+    'ANALYZING VISA PATHWAYS AND COSTS...',
+    'CONNECTING DREAMS WITH OPPORTUNITIES...',
+  ],
+  es: [
+    'UN FUTURO BRILLANTE A TAN SOLO SEGUNDOS DE DISTANCIA...',
+    'ESCANEANDO LAS MEJORES UNIVERSIDADES DEL MUNDO...',
+    'TU PRÓXIMO CAPÍTULO EMPIEZA AQUÍ...',
+    'ENCONTRANDO CAMINOS A LA RESIDENCIA PERMANENTE...',
+    'CADA GRAN VIAJE COMIENZA CON UNA BÚSQUEDA...',
+    'CONECTÁNDOTE CON BECAS ALREDEDOR DEL MUNDO...',
+    'EL MUNDO ESTÁ LLENO DE POSIBILIDADES...',
+    'CONSTRUYENDO TU HOJA DE RUTA MIGRATORIA...',
+    'ANALIZANDO RUTAS DE VISA Y COSTOS...',
+    'CONECTANDO SUEÑOS CON OPORTUNIDADES...',
+  ]
+};
+let phraseInterval = null;
+function startPhraseRotation() {
+  const el = document.getElementById('aiPhrase');
+  let idx = Math.floor(Math.random() * PHRASES[lang].length);
+  el.textContent = PHRASES[lang][idx];
+  phraseInterval = setInterval(() => {
+    el.style.opacity = '0';
+    setTimeout(() => {
+      idx = (idx + 1) % PHRASES[lang].length;
+      el.textContent = PHRASES[lang][idx];
+      el.style.opacity = '1';
+    }, 400);
+  }, 3500);
+}
+function stopPhraseRotation() {
+  if (phraseInterval) { clearInterval(phraseInterval); phraseInterval = null; }
+}
+
+function applyLang() {
+  document.getElementById('searchQ').placeholder = t('searchPlaceholder');
+  document.getElementById('searchBtn').textContent = t('searchBtn');
+  document.getElementById('langToggle').textContent = lang.toUpperCase();
+  // Don't overwrite aiIndicator structure - just update default phrase if not searching
+  if (!phraseInterval) {
+    document.getElementById('aiPhrase').textContent = t('aiIndicator');
+  }
+  // Filter labels
+  document.querySelectorAll('.f-label').forEach((el, i) => {
+    if (i === 0) el.textContent = t('degree');
+    else if (i === 1) el.textContent = t('region');
+    else if (i === 2) el.textContent = t('countries');
+  });
+  // Results header
+  const rCountEl = document.querySelector('.r-count');
+  if (rCountEl) {
+    const countSpan = document.getElementById('rCount');
+    rCountEl.innerHTML = '';
+    rCountEl.appendChild(countSpan);
+    rCountEl.append(` ${t('pathways')}`);
+  }
+  // Re-render region chips in new language
+  if (typeof renderRegionChips === 'function') renderRegionChips();
+}
+
+// ─── COORDS ──────────────────────────────────────────
+const LIMA = { lat: -12.05, lng: -77.04 };
+let CITY_COORDS = {};
+fetch('/api/coords').then(r=>r.json()).then(d=>{ CITY_COORDS = d; });
+
+// ─── REGIONS & COUNTRIES ────────────────────────────
+const REGIONS = {
+  'Europe': ['DE','NL','GB','FR','SE','NO','FI','DK','CH','AT','BE','IE','ES','IT','PT','CZ','PL','HU','GR','RO','HR','BG','SK','SI','LT','LV','EE','IS','LU','MT','CY'],
+  'North America': ['CA','US','MX'],
+  'Oceania': ['AU','NZ'],
+  'Asia': ['JP','KR','SG','HK','CN','IN','TW','MY','TH','VN','PH','ID','IL','AE','SA','QA'],
+  'South America': ['BR','AR','CL','CO','PE','EC','UY','PY','BO','VE'],
+  'Africa': ['ZA','EG','KE','NG','MA','GH','TZ','ET','TN','RW'],
+};
+const COUNTRY_NAMES = {
+  DE:'Germany',NL:'Netherlands',GB:'United Kingdom',FR:'France',SE:'Sweden',NO:'Norway',
+  FI:'Finland',DK:'Denmark',CH:'Switzerland',AT:'Austria',BE:'Belgium',IE:'Ireland',
+  ES:'Spain',IT:'Italy',PT:'Portugal',CZ:'Czech Republic',PL:'Poland',HU:'Hungary',
+  GR:'Greece',RO:'Romania',HR:'Croatia',BG:'Bulgaria',SK:'Slovakia',SI:'Slovenia',
+  LT:'Lithuania',LV:'Latvia',EE:'Estonia',IS:'Iceland',LU:'Luxembourg',MT:'Malta',CY:'Cyprus',
+  CA:'Canada',US:'United States',MX:'Mexico',AU:'Australia',NZ:'New Zealand',
+  JP:'Japan',KR:'South Korea',SG:'Singapore',HK:'Hong Kong',CN:'China',IN:'India',
+  TW:'Taiwan',MY:'Malaysia',TH:'Thailand',VN:'Vietnam',PH:'Philippines',ID:'Indonesia',
+  IL:'Israel',AE:'UAE',SA:'Saudi Arabia',QA:'Qatar',
+  BR:'Brazil',AR:'Argentina',CL:'Chile',CO:'Colombia',PE:'Peru',EC:'Ecuador',
+  UY:'Uruguay',PY:'Paraguay',BO:'Bolivia',VE:'Venezuela',
+  ZA:'South Africa',EG:'Egypt',KE:'Kenya',NG:'Nigeria',MA:'Morocco',GH:'Ghana',
+  TZ:'Tanzania',ET:'Ethiopia',TN:'Tunisia',RW:'Rwanda',
+};
+let selectedRegions = new Set();
+let selectedCountries = new Set();
+
+const regionChips = document.getElementById('regionChips');
+const REGION_KEYS = { 'Europe':'r_Europe', 'North America':'r_NorthAmerica', 'Oceania':'r_Oceania',
+  'Asia':'r_Asia', 'South America':'r_SouthAmerica', 'Africa':'r_Africa' };
+
+function renderRegionChips() {
+  regionChips.innerHTML = '';
+  Object.keys(REGIONS).forEach(r => {
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (selectedRegions.has(r) ? ' on' : '');
+    chip.textContent = t(REGION_KEYS[r]);
+    chip.onclick = () => {
+      if (selectedRegions.has(r)) { selectedRegions.delete(r); chip.classList.remove('on'); }
+      else { selectedRegions.add(r); chip.classList.add('on'); }
+      renderCountryTags();
+    };
+    regionChips.appendChild(chip);
+  });
+}
+renderRegionChips();
+
+function renderCountryTags() {
+  const grp = document.getElementById('countryGrp');
+  const box = document.getElementById('countryTags');
+  if (!selectedRegions.size) { grp.style.display = 'none'; selectedCountries.clear(); return; }
+  grp.style.display = '';
+  box.innerHTML = '';
+  // Collect countries from selected regions
+  const available = [];
+  selectedRegions.forEach(r => { REGIONS[r].forEach(c => { if (!available.includes(c)) available.push(c); }); });
+  available.sort((a,b) => (COUNTRY_NAMES[a]||a).localeCompare(COUNTRY_NAMES[b]||b));
+  // Remove any selected countries no longer in available
+  selectedCountries.forEach(c => { if (!available.includes(c)) selectedCountries.delete(c); });
+  available.forEach(code => {
+    const tag = document.createElement('span');
+    tag.className = 'ctag' + (selectedCountries.has(code) ? ' on' : '');
+    tag.textContent = code;
+    tag.title = COUNTRY_NAMES[code] || code;
+    tag.onclick = () => {
+      if (selectedCountries.has(code)) { selectedCountries.delete(code); tag.classList.remove('on'); }
+      else { selectedCountries.add(code); tag.classList.add('on'); }
+    };
+    box.appendChild(tag);
+  });
+}
+
+const GLOBE_R = 5;
+function ll2v(lat, lng, r = GLOBE_R) {
+  const phi = (90 - lat) * Math.PI / 180;
+  const theta = (lng + 180) * Math.PI / 180;
+  return new THREE.Vector3(
+    -r * Math.sin(phi) * Math.cos(theta),
+    r * Math.cos(phi),
+    r * Math.sin(phi) * Math.sin(theta)
+  );
+}
+
+// ─── THEME STATE ─────────────────────────────────────
+let isDark = true;
+
+// ─── THREE.JS SCENE ──────────────────────────────────
+const canvas = document.getElementById('globe');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 1000);
+camera.position.set(0, 2, 14);
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x000000);
+
+// Lighting
+const ambLight = new THREE.AmbientLight(0xffffff, 1.5);
+scene.add(ambLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.4);
+dirLight.position.set(5, 3, 5);
+scene.add(dirLight);
+
+// Controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.3;
+controls.enablePan = false;
+controls.minDistance = 7;
+controls.maxDistance = 25;
+
+// ─── GLOBE — MONOCHROME WIREFRAME ────────────────────
+// Inner solid sphere (slightly visible, gives depth)
+const globeGeo = new THREE.SphereGeometry(GLOBE_R, 64, 64);
+const globeMat = new THREE.MeshBasicMaterial({
+  color: 0x0a0a0a, transparent: true, opacity: 0.6
+});
+const globeMesh = new THREE.Mesh(globeGeo, globeMat);
+scene.add(globeMesh);
+
+// Outer wireframe (the main visible element)
+const wireGeo = new THREE.SphereGeometry(GLOBE_R + 0.02, 48, 48);
+const wireMat = new THREE.MeshBasicMaterial({
+  color: 0xffffff, wireframe: true, transparent: true, opacity: 0.08
+});
+const wireMesh = new THREE.Mesh(wireGeo, wireMat);
+scene.add(wireMesh);
+
+// Atmosphere glow — white/monochrome
+const atmoGeo = new THREE.SphereGeometry(GLOBE_R * 1.06, 64, 64);
+const atmoMat = new THREE.ShaderMaterial({
+  vertexShader: `varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }`,
+  fragmentShader: `uniform float uBright; varying vec3 vN; void main(){ float i = pow(0.55 - dot(vN, vec3(0,0,1)), 2.0); gl_FragColor = vec4(uBright, uBright, uBright, 1.) * i * 0.6; }`,
+  uniforms: { uBright: { value: 0.7 } },
+  blending: THREE.AdditiveBlending, side: THREE.BackSide, transparent: true,
+});
+const atmoMesh = new THREE.Mesh(atmoGeo, atmoMat);
+scene.add(atmoMesh);
+
+// ─── GRID LINES — CLEAN MONOCHROME ──────────────────
+const gridGroup = new THREE.Group();
+const gridMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.07 });
+for (let lat = -60; lat <= 60; lat += 30) {
+  const pts = [];
+  for (let lng = 0; lng <= 360; lng += 3) pts.push(ll2v(lat, lng - 180, GLOBE_R + 0.03));
+  gridGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gridMat));
+}
+for (let lng = -180; lng < 180; lng += 30) {
+  const pts = [];
+  for (let lat = -90; lat <= 90; lat += 3) pts.push(ll2v(lat, lng, GLOBE_R + 0.03));
+  gridGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gridMat));
+}
+scene.add(gridGroup);
+
+// Equator + prime meridian slightly brighter
+const eqMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.15 });
+const eqPts = [];
+for (let lng = 0; lng <= 360; lng += 2) eqPts.push(ll2v(0, lng - 180, GLOBE_R + 0.04));
+gridGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(eqPts), eqMat));
+
+// ─── REFERENCE CITY DOTS — PULSING LIKE LIMA ────────
+const REF = [
+  [40.71,-74.01],[51.51,-0.13],[48.86,2.35],[35.69,139.69],[-33.87,151.21],
+  [55.76,37.62],[39.91,116.40],[28.61,77.21],[30.04,31.24],[-23.55,-46.63],
+  [19.43,-99.13],[-1.29,36.82],[1.35,103.82],[37.57,126.98],[-34.60,-58.38],
+  [41.01,28.98],[59.33,18.07],[13.76,100.50],[25.20,55.27],[34.05,-118.24],
+  [41.88,-87.63],[42.36,-71.06],[38.72,-9.14],[50.08,14.44],[52.23,21.01],
+  [22.32,114.17],[31.23,121.47],[-36.85,174.76],[4.71,-74.07],[-33.45,-70.67],
+  [6.52,3.38],[47.50,19.04],[37.77,-122.42],[45.46,9.19],[60.17,24.94],
+];
+const refDots = [];
+const refRings = [];
+REF.forEach(([lat, lng], i) => {
+  const pos = ll2v(lat, lng, GLOBE_R + 0.05);
+  // Small sphere
+  const dotGeo = new THREE.SphereGeometry(0.055, 12, 12);
+  const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+  const dot = new THREE.Mesh(dotGeo, dotMat);
+  dot.position.copy(pos);
+  dot.lookAt(0, 0, 0);
+  scene.add(dot);
+  refDots.push(dot);
+  // Pulsing ring
+  const ringGeo = new THREE.RingGeometry(0.07, 0.082, 32);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, side: THREE.DoubleSide });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.copy(pos);
+  ring.lookAt(0, 0, 0);
+  scene.add(ring);
+  refRings.push(ring);
+});
+
+// ─── STARS ───────────────────────────────────────────
+const starsGeo = new THREE.BufferGeometry();
+const starPos = new Float32Array(1500);
+for (let i = 0; i < 1500; i++) starPos[i] = (Math.random() - 0.5) * 300;
+starsGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.12, transparent: true, opacity: 0.3 });
+const starsMesh = new THREE.Points(starsGeo, starsMat);
+scene.add(starsMesh);
+
+// ─── CONTINENT OUTLINES ─────────────────────────────
+const coastGroup = new THREE.Group();
+scene.add(coastGroup);
+const coastMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, linewidth: 1 });
+
+fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json')
+  .then(r => r.json())
+  .then(world => {
+    // Parse TopoJSON manually (no library needed for simple arcs)
+    const arcs = world.arcs;
+    const transform = world.transform;
+    function decodeArc(arcIdx) {
+      const reversed = arcIdx < 0;
+      const idx = reversed ? ~arcIdx : arcIdx;
+      const arc = arcs[idx];
+      const coords = [];
+      let x = 0, y = 0;
+      arc.forEach(([dx, dy]) => {
+        x += dx; y += dy;
+        const lng = x * transform.scale[0] + transform.translate[0];
+        const lat = y * transform.scale[1] + transform.translate[1];
+        coords.push([lat, lng]);
+      });
+      if (reversed) coords.reverse();
+      return coords;
+    }
+    // Get land geometry arcs
+    const landObj = world.objects.land;
+    const geometries = landObj.type === 'GeometryCollection' ? landObj.geometries : [landObj];
+    geometries.forEach(geom => {
+      const arcSets = geom.type === 'MultiPolygon' ? geom.arcs.flat() : (geom.arcs || []);
+      arcSets.forEach(ring => {
+        const pts = [];
+        ring.forEach(arcIdx => {
+          decodeArc(arcIdx).forEach(([lat, lng]) => {
+            pts.push(ll2v(lat, lng, GLOBE_R + 0.025));
+          });
+        });
+        if (pts.length > 1) {
+          const geo = new THREE.BufferGeometry().setFromPoints(pts);
+          coastGroup.add(new THREE.Line(geo, coastMat));
+        }
+      });
+    });
+  }).catch(e => console.warn('Coastline load failed:', e));
+
+// ─── HOME NODE (LIMA) — WHITE ────────────────────────
+function makeNode(size) {
+  const geo = new THREE.SphereGeometry(size, 16, 16);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+  return new THREE.Mesh(geo, mat);
+}
+function makeRing(radius) {
+  const geo = new THREE.RingGeometry(radius, radius + 0.015, 48);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+  return new THREE.Mesh(geo, mat);
+}
+
+const homeNode = makeNode(0.07);
+const homePos = ll2v(LIMA.lat, LIMA.lng, GLOBE_R + 0.06);
+homeNode.position.copy(homePos);
+homeNode.lookAt(0, 0, 0);
+scene.add(homeNode);
+
+const homeRing = makeRing(0.15);
+homeRing.position.copy(homePos);
+homeRing.lookAt(0, 0, 0);
+scene.add(homeRing);
+
+// ─── DYNAMIC NODES & ARCS ───────────────────────────
+let resultNodes = [];
+let resultRings = [];
+let resultArcs = [];
+let activeIdx = -1;
+
+function clearResults3D() {
+  resultNodes.forEach(n => scene.remove(n));
+  resultRings.forEach(r => scene.remove(r));
+  resultArcs.forEach(a => { a.forEach(m => scene.remove(m)); });
+  resultNodes = [];
+  resultRings = [];
+  resultArcs = [];
+}
+
+function addResultNode(lat, lng, viable) {
+  const node = makeNode(0.06);
+  const pos = ll2v(lat, lng, GLOBE_R + 0.06);
+  node.position.copy(pos);
+  node.lookAt(0, 0, 0);
+  scene.add(node);
+  resultNodes.push(node);
+
+  const ring = makeRing(0.12);
+  ring.position.copy(pos);
+  ring.lookAt(0, 0, 0);
+  scene.add(ring);
+  resultRings.push(ring);
+
+  // Arc from Lima — white line
+  const start = ll2v(LIMA.lat, LIMA.lng, GLOBE_R + 0.04);
+  const end = ll2v(lat, lng, GLOBE_R + 0.04);
+  const mid = start.clone().add(end).multiplyScalar(0.5);
+  mid.normalize().multiplyScalar(GLOBE_R + 2.0);
+  const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+  const arcPts = curve.getPoints(64);
+  const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPts);
+  const arcMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12 });
+  const arcLine = new THREE.Line(arcGeo, arcMat);
+  scene.add(arcLine);
+  resultArcs.push([arcLine]);
+}
+
+// ─── THEME SWITCHING FOR GLOBE ───────────────────────
+function setGlobeTheme(dark) {
+  const fg = dark ? 0xffffff : 0x000000;
+  const bgHex = dark ? 0x000000 : 0xf5f5f5;
+  const solidBg = dark ? 0x0a0a0a : 0xededed;
+  renderer.setClearColor(bgHex);
+  globeMat.color.setHex(solidBg);
+  wireMat.color.setHex(fg);
+  gridGroup.children.forEach(l => { l.material.color.setHex(fg); });
+  refDots.forEach(d => { d.material.color.setHex(fg); });
+  refRings.forEach(r => { r.material.color.setHex(fg); });
+  starsMat.color.setHex(fg);
+  starsMat.opacity = dark ? 0.3 : 0.08;
+  homeNode.material.color.setHex(fg);
+  homeRing.material.color.setHex(fg);
+  atmoMat.uniforms.uBright.value = dark ? 0.7 : 0.2;
+  coastGroup.children.forEach(l => { l.material.color.setHex(fg); });
+  resultNodes.forEach(n => { n.material.color.setHex(fg); });
+  resultRings.forEach(r => { r.material.color.setHex(fg); });
+  resultArcs.forEach(group => { group.forEach(a => { if(a.material) a.material.color.setHex(fg); }); });
+}
+
+// ─── CAMERA ANIMATION ────────────────────────────────
+let camAnim = null;
+function flyTo(lat, lng, onDone) {
+  const targetPos = ll2v(lat, lng, 12);
+  const targetLook = ll2v(lat, lng, 0);
+  const startPos = camera.position.clone();
+  const startTarget = controls.target.clone();
+  let t = 0;
+  controls.autoRotate = false;
+  camAnim = { targetPos, targetLook, startPos, startTarget, t, onDone };
+}
+function updateCamAnim() {
+  if (!camAnim) return;
+  camAnim.t += 0.015;
+  const t = easeInOut(Math.min(camAnim.t, 1));
+  camera.position.lerpVectors(camAnim.startPos, camAnim.targetPos, t);
+  controls.target.lerpVectors(camAnim.startTarget, camAnim.targetLook, t);
+  if (camAnim.t >= 1) {
+    if (camAnim.onDone) camAnim.onDone();
+    camAnim = null;
+  }
+}
+function easeInOut(t) { return t < 0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+
+// ─── NODE PULSE ANIMATION ────────────────────────────
+let clock = 0;
+function updatePulse() {
+  clock += 0.03;
+  // Home ring pulses
+  const homeScale = 1 + Math.sin(clock * 2) * 0.15;
+  homeRing.scale.setScalar(homeScale);
+  homeRing.material.opacity = 0.3 + Math.sin(clock * 2) * 0.1;
+  // Reference city dots pulse gently (staggered)
+  refRings.forEach((r, i) => {
+    const phase = clock * 1.5 + i * 0.5;
+    const s = 1 + Math.sin(phase) * 0.2;
+    r.scale.setScalar(s);
+    r.material.opacity = 0.25 + Math.sin(phase) * 0.1;
+  });
+  refDots.forEach((d, i) => {
+    d.material.opacity = 0.65 + Math.sin(clock * 1.5 + i * 0.5) * 0.2;
+  });
+  // Result rings pulse
+  resultRings.forEach((r, i) => {
+    const active = i === activeIdx;
+    const scale = active ? 1.2 + Math.sin(clock * 2 + i) * 0.2 : 1 + Math.sin(clock * 2 + i) * 0.1;
+    r.scale.setScalar(scale);
+    r.material.opacity = active ? 0.5 : 0.2;
+  });
+  // Highlight active arc
+  resultArcs.forEach((group, i) => {
+    group.forEach(a => { if(a.material) a.material.opacity = i === activeIdx ? 0.3 : 0.08; });
+  });
+}
+
+// ─── THEME TOGGLE ────────────────────────────────────
+document.getElementById('themeToggle').onclick = () => {
+  isDark = !isDark;
+  document.body.dataset.theme = isDark ? 'dark' : 'light';
+  setGlobeTheme(isDark);
+  document.getElementById('themeIcon').innerHTML = isDark
+    ? '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>'
+    : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+};
+
+// ─── LANGUAGE TOGGLE ─────────────────────────────────
+document.getElementById('langToggle').onclick = () => {
+  lang = lang === 'en' ? 'es' : 'en';
+  applyLang();
+};
+applyLang(); // Set initial language
+
+// ─── RENDER LOOP ─────────────────────────────────────
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  updateCamAnim();
+  updatePulse();
+  renderer.render(scene, camera);
+}
+animate();
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ─── STATE ───────────────────────────────────────────
+let results = [];
+let degrees = ['masters'];
+let bubbleLocked = false; // Prevents focus from re-expanding after collapse
+
+// ─── SEARCH UI ───────────────────────────────────────
+const bubble = document.getElementById('searchBubble');
+const qInput = document.getElementById('searchQ');
+const sBtn = document.getElementById('searchBtn');
+const aiInd = document.getElementById('aiIndicator');
+
+document.getElementById('lupaBtn').onclick = () => {
+  if (bubble.classList.contains('collapsed')) {
+    // Open from collapsed state
+    bubble.classList.remove('collapsed');
+    bubble.classList.add('expanded');
+    bubbleLocked = false;
+    setTimeout(() => qInput.focus(), 100);
+  } else if (bubble.classList.contains('expanded')) {
+    // Close back to collapsed if results are showing
+    if (rPanel.classList.contains('open')) {
+      bubbleLocked = true;
+      qInput.blur();
+      bubble.classList.remove('expanded');
+      bubble.classList.add('collapsed');
+      setTimeout(() => { bubbleLocked = false; }, 400);
+    } else {
+      bubble.classList.remove('expanded');
+    }
+  } else {
+    bubble.classList.add('expanded');
+  }
+};
+qInput.addEventListener('focus', () => {
+  if (bubbleLocked) return;
+  if (bubble.classList.contains('collapsed')) {
+    bubble.classList.remove('collapsed');
+  }
+  bubble.classList.add('expanded');
+});
+
+document.querySelectorAll('.chip[data-d]').forEach(c => {
+  c.onclick = () => { c.classList.toggle('on'); degrees = [...document.querySelectorAll('.chip.on[data-d]')].map(x=>x.dataset.d); };
+});
+
+function doSearch() {
+  const q = qInput.value.trim();
+  if (!q) return;
+  sBtn.disabled = true;
+  sBtn.textContent = '...';
+  aiInd.classList.add('show');
+  startPhraseRotation();
+
+  // If regions selected but no specific countries, use all countries from selected regions
+  let countries = [...selectedCountries];
+  if (!countries.length && selectedRegions.size) {
+    selectedRegions.forEach(r => { REGIONS[r].forEach(c => { if (!countries.includes(c)) countries.push(c); }); });
+  }
+  let url = `/api/search?q=${encodeURIComponent(q)}&fresh=true&lang=${lang}&`;
+  degrees.forEach(d => url += `degree=${d}&`);
+  countries.forEach(c => url += `country=${c}&`);
+
+  fetch(url).then(r=>r.json()).then(data => {
+    // Sort by VCI ascending (lower cost = better). Nulls go last.
+    data.sort((a, b) => {
+      if (a.vci_usd == null && b.vci_usd == null) return 0;
+      if (a.vci_usd == null) return 1;
+      if (b.vci_usd == null) return -1;
+      return a.vci_usd - b.vci_usd;
+    });
+    // Assign fresh ranks
+    data.forEach((r, i) => { r._rank = i + 1; });
+    results = data;
+    sBtn.disabled = false;
+    sBtn.textContent = t('searchBtn');
+    aiInd.classList.remove('show');
+    stopPhraseRotation();
+    showResults(data);
+    // Collapse search bubble to give results full view
+    if (data.length) {
+      bubbleLocked = true;
+      qInput.blur();
+      setTimeout(() => {
+        bubble.classList.remove('expanded');
+        bubble.classList.add('collapsed');
+        setTimeout(() => { bubbleLocked = false; }, 400);
+      }, 500);
+    }
+  }).catch(() => {
+    sBtn.disabled = false;
+    sBtn.textContent = t('searchBtn');
+    aiInd.classList.remove('show');
+    stopPhraseRotation();
+  });
+}
+sBtn.onclick = doSearch;
+qInput.onkeydown = e => { if (e.key === 'Enter') doSearch(); };
+
+// ─── RESULTS PANEL ───────────────────────────────────
+const rPanel = document.getElementById('resultsPanel');
+const rList = document.getElementById('rList');
+document.getElementById('rClose').onclick = () => {
+  rPanel.classList.remove('open');
+  clearResults3D();
+  controls.autoRotate = true;
+  activeIdx = -1;
+  // Restore search bubble
+  bubble.classList.remove('collapsed');
+  bubble.classList.remove('expanded');
+};
+
+function showResults(data) {
+  clearResults3D();
+  document.getElementById('rCount').textContent = data.length;
+
+  if (!data.length) {
+    rList.innerHTML = `<div style="padding:40px 28px;text-align:center"><p style="font-size:13px;color:#444;letter-spacing:2px">${t('noPathways')}</p></div>`;
+    rPanel.classList.add('open');
+    return;
+  }
+
+  rList.innerHTML = data.map((r, i) => {
+    const viable = r.viability_status === 'VIABLE';
+    const alerts = r.alerts || [];
+    let tags = `<span class="rtag ${viable?'v':'g'}">${r.viability_status||'N/A'}</span>`;
+    if (alerts.includes('NO_EMBASSY_IN_PERU')) tags += `<span class="rtag w">${t('noEmbassy')}</span>`;
+    if (alerts.includes('HIGH_LABOR_PRESSURE')) tags += `<span class="rtag g">${t('pressure')}</span>`;
+    if (alerts.includes('SELF_FUNDING_VIABLE')) tags += `<span class="rtag i">${t('selfFund')}</span>`;
+    return `<div class="rcard${i===0?' active':''}" data-i="${i}" data-pid="${r.program_id}">
+      <div class="rk">${r._rank||i+1}</div>
+      <div class="rinfo">
+        <h4>${r.program_name||''}</h4>
+        <div class="runi">${r.university||''} — ${r.city||''}, ${r.country_name||r.country_id||''}</div>
+        <div class="rtags">${tags}</div>
+      </div>
+      <div class="rvci">
+        <div class="rv">${r.vci_usd!=null?'$'+Number(r.vci_usd).toLocaleString():'—'}</div>
+        <div class="rl">VCI</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  rPanel.classList.add('open');
+
+  // Add 3D nodes
+  data.forEach(r => {
+    const coords = r.coords || getCityCoords(r.city);
+    if (coords) addResultNode(coords[0], coords[1], r.viability_status === 'VIABLE');
+  });
+
+  // Fly to first result
+  const first = data[0];
+  const c0 = first.coords || getCityCoords(first.city);
+  if (c0) flyTo(c0[0], c0[1]);
+  setActive(0);
+
+  // Card click handlers
+  rList.querySelectorAll('.rcard').forEach(card => {
+    card.onclick = () => {
+      const i = parseInt(card.dataset.i);
+      if (i === activeIdx) {
+        openDetail(card.dataset.pid);
+      } else {
+        setActive(i);
+        const r = data[i];
+        const coords = r.coords || getCityCoords(r.city);
+        if (coords) flyTo(coords[0], coords[1]);
+      }
+    };
+  });
+}
+
+function getCityCoords(city) {
+  return CITY_COORDS[city] || null;
+}
+
+function setActive(i) {
+  activeIdx = i;
+  rList.querySelectorAll('.rcard').forEach((c, j) => c.classList.toggle('active', j === i));
+}
+
+// ─── DETAIL VIEW ─────────────────────────────────────
+const detOverlay = document.getElementById('detailOverlay');
+const detContent = document.getElementById('detContent');
+
+function openDetail(pid) {
+  detContent.innerHTML = '<div class="spinner"></div>';
+  detOverlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  fetch(`/api/program/${pid}`).then(r=>r.json()).then(d => {
+    const gap = d.legal_gap_months;
+    const sClass = d.viability_status === 'VIABLE' ? 'v' : 'g';
+    const sm = d.study_visa_months || 0, em = d.post_study_extension_months || 0;
+    const gm = Math.max(0, gap || 0);
+    const annual = d.tuition_annual_usd ? '$'+Number(d.tuition_annual_usd).toLocaleString() : '—';
+    const full = d.full_tuition_usd ? '$'+Number(d.full_tuition_usd).toLocaleString() : '—';
+
+    let scholHtml = '';
+    if (d.scholarships && d.scholarships.length) {
+      scholHtml = d.scholarships.map(s => {
+        const types = (s.candidate_type||[]).map(ct=>`<span class="sc-tg">${ct}</span>`).join('');
+        const covers = [];
+        if (s.covers_mobility_expenses) covers.push(`<span class="sc-tg">${t('mobility')}</span>`);
+        if (s.covers_medical_insurance) covers.push(`<span class="sc-tg">${t('medical')}</span>`);
+        return `<div class="sc">
+          <h4>${s.scholarship_name}</h4>
+          <div class="sc-prov">${s.provider_organization}</div>
+          <div class="sc-grid">
+            <div class="sc-s"><div class="sv">${s.coverage_pct!=null?s.coverage_pct+'%':'—'}</div><div class="sl">${t('coverage')}</div></div>
+            <div class="sc-s"><div class="sv">${s.monthly_stipend_usd?'$'+s.monthly_stipend_usd.toLocaleString()+'/mo':'—'}</div><div class="sl">${t('stipend')}</div></div>
+            <div class="sc-s"><div class="sv">${s.annual_stipend_usd?'$'+Number(s.annual_stipend_usd).toLocaleString()+'/yr':'—'}</div><div class="sl">${t('annual')}</div></div>
+          </div>
+          <div class="sc-grid" style="margin-top:10px">
+            <div class="sc-s"><div class="sv">${s.application_deadline||'—'}</div><div class="sl">${t('deadline')}</div></div>
+            <div class="sc-s"><div class="sv">${s.peru_eligible?t('yes'):'—'}</div><div class="sl">${t('peruEligible')}</div></div>
+          </div>
+          <div class="sc-tags">${types}${covers.join('')}</div>
+        </div>`;
+      }).join('');
+    } else {
+      scholHtml = `<p style="color:#333;font-size:12px;font-weight:300">${t('noScholarships')}</p>`;
+    }
+
+    detContent.innerHTML = `
+      <button class="det-close" id="detClose">&times;</button>
+      <h2>${d.program_name}</h2>
+      <div class="d-uni">${d.university}</div>
+      <div class="d-loc">${d.city}, ${d.country_name} (${d.country_id})</div>
+      <div class="d-badge ${sClass}">${d.viability_status||'UNKNOWN'}</div>
+      <div class="d-grid">
+        <div class="d-m"><div class="dv">${d.vci_usd!=null?'$'+Number(d.vci_usd).toLocaleString():'—'}</div><div class="dl">${t('vciTotal')}</div></div>
+        <div class="d-m"><div class="dv">${annual}</div><div class="dl">${t('tuitionYear')}</div></div>
+        <div class="d-m"><div class="dv">${full}</div><div class="dl">${t('fullTuition')}</div></div>
+        <div class="d-m"><div class="dv">${d.duration_months||'—'} mo</div><div class="dl">${t('duration')}</div></div>
+        <div class="d-m"><div class="dv">${gap!=null?gap:'—'} mo</div><div class="dl">${t('legalGap')}</div></div>
+        <div class="d-m"><div class="dv">${d.employment_months_required||0} mo</div><div class="dl">${t('employmentReq')}</div></div>
+        <div class="d-m"><div class="dv">${d.coverage_ratio_pct!=null?d.coverage_ratio_pct+'%':'—'}</div><div class="dl">${t('coverageRatio')}</div></div>
+        <div class="d-m"><div class="dv">${d.labor_pressure_index!=null?d.labor_pressure_index:'—'}</div><div class="dl">${t('laborPressure')}</div></div>
+      </div>
+      <div class="d-sec"><h3>${t('timeline')}</h3><div class="d-body">
+        <div class="tl">
+          <div class="tl-b tl-s" style="flex:${sm}"><div class="tl-v">${sm}</div><div class="tl-l">${t('study')}</div></div>
+          <div class="tl-arr">&rarr;</div>
+          <div class="tl-b tl-e" style="flex:${em}"><div class="tl-v">${em}</div><div class="tl-l">${t('postStudy')}</div></div>
+          ${gm>0?`<div class="tl-arr">&rarr;</div><div class="tl-b tl-g" style="flex:${gm}"><div class="tl-v">${gm}</div><div class="tl-l">${t('gap')}</div></div>`:''}
+          <div class="tl-arr">&rarr;</div>
+          <div style="font-size:11px;font-weight:900;letter-spacing:2px;padding:14px">PR</div>
+        </div>
+      </div></div>
+      <div class="d-sec"><h3>${t('countryImmigration')}</h3><div class="d-body">
+        <div class="d-grid">
+          <div class="d-m"><div class="dv">${d.months_to_pr||'—'} mo</div><div class="dl">${t('timeToPR')}</div></div>
+          <div class="d-m"><div class="dv">${d.max_hours_per_week||'—'}h/wk</div><div class="dl">${t('workAllowed')}</div></div>
+          <div class="d-m"><div class="dv">${d.solvency_buffer_usd?'$'+Number(d.solvency_buffer_usd).toLocaleString()+'/yr':'—'}</div><div class="dl">${t('solvencyBuffer')}</div></div>
+          <div class="d-m"><div class="dv">${d.embassy_in_peru?t('yes'):t('no')}</div><div class="dl">${t('embassy')}</div></div>
+        </div>
+      </div></div>
+      <div class="d-sec"><h3>${t('scholarships')} (${d.scholarships?d.scholarships.length:0})</h3><div class="d-body">${scholHtml}</div></div>
+      <div class="d-sec"><h3>${t('recommendation')}</h3><div class="d-body">
+        <div class="rec-box"><p>${d.recommended_action||t('noRecommendation')}</p></div>
+      </div></div>
+      ${d.program_url?`<a class="d-link" href="${d.program_url}" target="_blank" rel="noopener">${t('visitProgram')} &rarr;</a>`:''}
+    `;
+    document.getElementById('detClose').onclick = closeDetail;
+  });
+}
+
+function closeDetail() {
+  detOverlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+detOverlay.onclick = e => { if (e.target === detOverlay) closeDetail(); };
+document.onkeydown = e => { if (e.key === 'Escape') closeDetail(); };
+</script>
+</body>
+</html>

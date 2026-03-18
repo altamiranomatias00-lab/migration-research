@@ -1,0 +1,259 @@
+[
+  {
+    "scholarship_id": "daad-development-related",
+    "scholarship_name": "DAAD Development-Related Postgraduate Courses (EPOS)",
+    "provider_organization": "DAAD (German Academic Exchange Service)",
+    "candidate_type": [
+      "developing-country",
+      "merit-based"
+    ],
+    "coverage_pct": 100,
+    "monthly_stipend_usd": 990,
+    "covers_mobility_expenses": true,
+    "covers_medical_insurance": true,
+    "application_deadline": "2026-10-15",
+    "applicable_program_ids": [
+      "tu-berlin-msc-computer-science",
+      "tu-munich-msc-informatics",
+      "rwth-aachen-msc-computer-science"
+    ],
+    "eligible_country_ids": [
+      "PE"
+    ],
+    "peru_eligible": true,
+    "unverified_fields": []
+  },
+  {
+    "scholarship_id": "deutschlandstipendium",
+    "scholarship_name": "Deutschlandstipendium",
+    "provider_organization": "German Federal Government + Private Sponsors",
+    "candidate_type": [
+      "merit-based"
+    ],
+    "coverage_pct": 0,
+    "monthly_stipend_usd": 345,
+    "covers_mobility_expenses": false,
+    "covers_medical_insurance": false,
+    "application_deadline": "2026-07-15",
+    "applicable_program_ids": [
+      "tu-berlin-msc-computer-science",
+      "tu-munich-msc-informatics",
+      "rwth-aachen-msc-computer-science"
+    ],
+    "eligible_country_ids": [
+      "PE"
+    ],
+    "peru_eligible": true,
+    "unverified_fields": [
+      "application_deadline"
+    ]
+  },
+  {
+    "scholarship_id": "daad-study-scholarship",
+    "scholarship_name": "DAAD Study Scholarships for Graduates",
+    "provider_organization": "DAAD",
+    "candidate_type": [
+      "merit-based",
+      "developing-country"
+    ],
+    "coverage_pct": 100,
+    "monthly_stipend_usd": 990,
+    "covers_mobility_expenses": true,
+    "covers_medical_insurance": true,
+    "application_deadline": "2026-10-15",
+    "applicable_program_ids": [
+      "tu-berlin-msc-computer-science",
+      "tu-munich-msc-informatics",
+      "rwth-aachen-msc-computer-science"
+    ],
+    "eligible_country_ids": [
+      "PE"
+    ],
+    "peru_eligible": true,
+    "unverified_fields": []
+  },
+  {
+    "scholarship_id": "holland-scholarship",
+    "scholarship_name": "Holland Scholarship",
+    "provider_organization": "Dutch Ministry of Education / Nuffic",
+    "candidate_type": [
+      "merit-based"
+    ],
+    "coverage_pct": 0,
+    "monthly_stipend_usd": 220,
+    "covers_mobility_expenses": false,
+    "covers_medical_insurance": false,
+    "application_deadline": "2027-02-01",
+    "applicable_program_ids": [
+      "tu-delft-msc-computer-science",
+      "uva-msc-artificial-intelligence",
+      "tue-msc-computer-science"
+    ],
+    "eligible_country_ids": [
+      "PE"
+    ],
+    "peru_eligible": true,
+    "unverified_fields": []
+  },
+  {
+    "scholarship_id": "tu-delft-excellence",
+    "scholarship_name": "Justus & Louise van Effen Excellence Scholarships",
+    "provider_organization": "TU Delft",
+    "candidate_type": [
+      "merit-based"
+    ],
+    "coverage_pct": 100,
+    "monthly_stipend_usd": 1100,
+    "covers_mobility_expenses": true,
+    "covers_medical_insurance": true,
+    "application_deadline": "2026-12-01",
+    "applicable_program_ids": [
+      "tu-delft-msc-computer-science"
+    ],
+    "eligible_country_ids": [
+      "PE"
+    ],
+    "peru_eligible": true,
+    "unverified_fields": [
+      "monthly_stipend_usd"
+    ]
+  },
+  {
+    "scholarship_id": "uva-amsterdam-excellence",
+    "scholarship_name": "Amsterdam Excellence Scholarship (AES)",
+    "provider_organization": "University of Amsterdam",
+    "candidate_type": [
+      "merit-based"
+    ],
+    "coverage_pct": 100,
+    "monthly_stipend_usd": 1050,
+    "covers_mobility_expenses": false,
+    "covers_medical_insurance": false,
+    "application_deadline": "2027-01-15",
+    "applicable_program_ids": [
+      "uva-msc-artificial-intelligence"
+    ],
+    "eligible_country_ids": [
+      "PE"
+    ],
+    "peru_eligible": true,
+    "unverified_fields": []
+  },
+  {
+    "scholarship_id": "vanier-cgs",
+    "scholarship_name": "Vanier Canada Graduate Scholarships",
+    "provider_organization": "Government of Canada",
+    "candidate_type": [
+      "merit-based",
+      "government-funded"
+    ],
+    "coverage_pct": 100,
+    "monthly_stipend_usd": 3700,
+    "covers_mobility_expenses": false,
+    "covers_medical_insurance": false,
+    "application_deadline": "2026-11-01",
+    "applicable_program_ids": [
+      "ubc-msc-computer-science",
+      "utoronto-msc-computer-science",
+      "uwaterloo-mmath-computer-science"
+    ],
+    "eligible_country_ids": [
+      "PE"
+    ],
+    "peru_eligible": true,
+    "unverified_fields": []
+  },
+  {
+    "scholarship_id": "ubc-international-tuition-award",
+    "scholarship_name": "UBC International Tuition Award",
+    "provider_organization": "University of British Columbia",
+    "candidate_type": [
+      "merit-based"
+    ],
+    "coverage_pct": 100,
+    "monthly_stipend_usd": 1800,
+    "covers_mobility_expenses": false,
+    "covers_medical_insurance": true,
+    "application_deadline": "2026-12-15",
+    "applicable_program_ids": [
+      "ubc-msc-computer-science"
+    ],
+    "eligible_country_ids": [
+      "PE"
+    ],
+    "peru_eligible": true,
+    "unverified_fields": [
+      "monthly_stipend_usd"
+    ]
+  },
+  {
+    "scholarship_id": "australia-awards",
+    "scholarship_name": "Australia Awards Scholarships",
+    "provider_organization": "Australian Government (DFAT)",
+    "candidate_type": [
+      "developing-country",
+      "government-funded"
+    ],
+    "coverage_pct": 100,
+    "monthly_stipend_usd": 2100,
+    "covers_mobility_expenses": true,
+    "covers_medical_insurance": true,
+    "application_deadline": "2027-04-30",
+    "applicable_program_ids": [
+      "umelbourne-mit",
+      "unsw-mit",
+      "usydney-mit"
+    ],
+    "eligible_country_ids": [
+      "PE"
+    ],
+    "peru_eligible": true,
+    "unverified_fields": [
+      "application_deadline"
+    ]
+  },
+  {
+    "scholarship_id": "umelbourne-grad-intl",
+    "scholarship_name": "Melbourne Graduate Scholarship (International)",
+    "provider_organization": "University of Melbourne",
+    "candidate_type": [
+      "merit-based"
+    ],
+    "coverage_pct": 50,
+    "monthly_stipend_usd": 0,
+    "covers_mobility_expenses": false,
+    "covers_medical_insurance": false,
+    "application_deadline": "2026-10-31",
+    "applicable_program_ids": [
+      "umelbourne-mit"
+    ],
+    "eligible_country_ids": [
+      "PE"
+    ],
+    "peru_eligible": true,
+    "unverified_fields": [
+      "coverage_pct"
+    ]
+  },
+  {
+    "scholarship_id": "unsw-scientia",
+    "scholarship_name": "UNSW Scientia Scholarship",
+    "provider_organization": "UNSW Sydney",
+    "candidate_type": [
+      "merit-based"
+    ],
+    "coverage_pct": 100,
+    "monthly_stipend_usd": 2600,
+    "covers_mobility_expenses": true,
+    "covers_medical_insurance": true,
+    "application_deadline": "2026-08-01",
+    "applicable_program_ids": [
+      "unsw-mit"
+    ],
+    "eligible_country_ids": [
+      "PE"
+    ],
+    "peru_eligible": true,
+    "unverified_fields": []
+  }
+]

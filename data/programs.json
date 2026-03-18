@@ -1,0 +1,282 @@
+[
+  {
+    "program_id": "tu-berlin-msc-computer-science",
+    "program_name": "MSc Computer Science",
+    "university": "Technische Universitat Berlin",
+    "city": "Berlin",
+    "country_id": "DE",
+    "faculty_or_department": "Faculty of Electrical Engineering and Computer Science",
+    "duration_months": 24,
+    "language_of_instruction": "English",
+    "full_tuition_usd": 760,
+    "program_url": "https://www.tu.berlin/en/studying/study-programs/all-programs-offered/study-course/computer-science-informatik-m-sc",
+    "scholarship_ids": [
+      "daad-development-related",
+      "deutschlandstipendium",
+      "daad-study-scholarship"
+    ],
+    "max_coverage_pct": 100,
+    "max_stipend_usd": 990,
+    "scholarship_providers": [
+      "German Federal Government + Private Sponsors",
+      "DAAD (German Academic Exchange Service)",
+      "DAAD"
+    ],
+    "unverified_fields": []
+  },
+  {
+    "program_id": "tu-munich-msc-informatics",
+    "program_name": "MSc Informatics",
+    "university": "Technical University of Munich",
+    "city": "Munich",
+    "country_id": "DE",
+    "faculty_or_department": "Department of Computer Science",
+    "duration_months": 24,
+    "language_of_instruction": "English",
+    "full_tuition_usd": 520,
+    "program_url": "https://www.tum.de/en/studies/degree-programs/detail/informatics-master-of-science-msc",
+    "scholarship_ids": [
+      "daad-development-related",
+      "deutschlandstipendium",
+      "daad-study-scholarship"
+    ],
+    "max_coverage_pct": 100,
+    "max_stipend_usd": 990,
+    "scholarship_providers": [
+      "German Federal Government + Private Sponsors",
+      "DAAD (German Academic Exchange Service)",
+      "DAAD"
+    ],
+    "unverified_fields": []
+  },
+  {
+    "program_id": "rwth-aachen-msc-computer-science",
+    "program_name": "MSc Computer Science",
+    "university": "RWTH Aachen University",
+    "city": "Aachen",
+    "country_id": "DE",
+    "faculty_or_department": "Faculty of Mathematics, Computer Science and Natural Sciences",
+    "duration_months": 24,
+    "language_of_instruction": "English",
+    "full_tuition_usd": 1120,
+    "program_url": "https://www.rwth-aachen.de/cms/root/studium/vor-dem-studium/studiengaenge/liste-aktuelle-studiengaenge/studiengangbeschreibung/~bplm/informatik-m-sc/",
+    "scholarship_ids": [
+      "daad-development-related",
+      "deutschlandstipendium",
+      "daad-study-scholarship"
+    ],
+    "max_coverage_pct": 100,
+    "max_stipend_usd": 990,
+    "scholarship_providers": [
+      "German Federal Government + Private Sponsors",
+      "DAAD (German Academic Exchange Service)",
+      "DAAD"
+    ],
+    "unverified_fields": []
+  },
+  {
+    "program_id": "tu-delft-msc-computer-science",
+    "program_name": "MSc Computer Science",
+    "university": "Delft University of Technology",
+    "city": "Delft",
+    "country_id": "NL",
+    "faculty_or_department": "Faculty of Electrical Engineering, Mathematics and Computer Science",
+    "duration_months": 24,
+    "language_of_instruction": "English",
+    "full_tuition_usd": 36400,
+    "program_url": "https://www.tudelft.nl/onderwijs/opleidingen/masters/cs/msc-computer-science",
+    "scholarship_ids": [
+      "holland-scholarship",
+      "tu-delft-excellence"
+    ],
+    "max_coverage_pct": 100,
+    "max_stipend_usd": 1100,
+    "scholarship_providers": [
+      "TU Delft",
+      "Dutch Ministry of Education / Nuffic"
+    ],
+    "unverified_fields": []
+  },
+  {
+    "program_id": "uva-msc-artificial-intelligence",
+    "program_name": "MSc Artificial Intelligence",
+    "university": "University of Amsterdam",
+    "city": "Amsterdam",
+    "country_id": "NL",
+    "faculty_or_department": "Faculty of Science",
+    "duration_months": 24,
+    "language_of_instruction": "English",
+    "full_tuition_usd": 37000,
+    "program_url": "https://www.uva.nl/en/programmes/masters/artificial-intelligence/artificial-intelligence.html",
+    "scholarship_ids": [
+      "holland-scholarship",
+      "uva-amsterdam-excellence"
+    ],
+    "max_coverage_pct": 100,
+    "max_stipend_usd": 1050,
+    "scholarship_providers": [
+      "Dutch Ministry of Education / Nuffic",
+      "University of Amsterdam"
+    ],
+    "unverified_fields": []
+  },
+  {
+    "program_id": "tue-msc-computer-science",
+    "program_name": "MSc Computer Science and Engineering",
+    "university": "Eindhoven University of Technology",
+    "city": "Eindhoven",
+    "country_id": "NL",
+    "faculty_or_department": "Department of Mathematics and Computer Science",
+    "duration_months": 24,
+    "language_of_instruction": "English",
+    "full_tuition_usd": 35200,
+    "program_url": "https://www.tue.nl/en/education/graduate-school/master-computer-science-and-engineering",
+    "scholarship_ids": [
+      "holland-scholarship"
+    ],
+    "max_coverage_pct": 0,
+    "max_stipend_usd": 220,
+    "scholarship_providers": [
+      "Dutch Ministry of Education / Nuffic"
+    ],
+    "unverified_fields": []
+  },
+  {
+    "program_id": "ubc-msc-computer-science",
+    "program_name": "MSc Computer Science",
+    "university": "University of British Columbia",
+    "city": "Vancouver",
+    "country_id": "CA",
+    "faculty_or_department": "Department of Computer Science",
+    "duration_months": 24,
+    "language_of_instruction": "English",
+    "full_tuition_usd": 8800,
+    "program_url": "https://www.cs.ubc.ca/students/grad/prospective-grads/grad-programs/msc-program",
+    "scholarship_ids": [
+      "vanier-cgs",
+      "ubc-international-tuition-award"
+    ],
+    "max_coverage_pct": 100,
+    "max_stipend_usd": 3700,
+    "scholarship_providers": [
+      "University of British Columbia",
+      "Government of Canada"
+    ],
+    "unverified_fields": [
+      "full_tuition_usd"
+    ]
+  },
+  {
+    "program_id": "utoronto-msc-computer-science",
+    "program_name": "MSc Computer Science",
+    "university": "University of Toronto",
+    "city": "Toronto",
+    "country_id": "CA",
+    "faculty_or_department": "Department of Computer Science",
+    "duration_months": 20,
+    "language_of_instruction": "English",
+    "full_tuition_usd": 52500,
+    "program_url": "https://web.cs.toronto.edu/graduate/msc",
+    "scholarship_ids": [
+      "vanier-cgs"
+    ],
+    "max_coverage_pct": 100,
+    "max_stipend_usd": 3700,
+    "scholarship_providers": [
+      "Government of Canada"
+    ],
+    "unverified_fields": [
+      "full_tuition_usd"
+    ]
+  },
+  {
+    "program_id": "uwaterloo-mmath-computer-science",
+    "program_name": "MMath Computer Science",
+    "university": "University of Waterloo",
+    "city": "Waterloo",
+    "country_id": "CA",
+    "faculty_or_department": "David R. Cheriton School of Computer Science",
+    "duration_months": 24,
+    "language_of_instruction": "English",
+    "full_tuition_usd": 30000,
+    "program_url": "https://cs.uwaterloo.ca/future-graduate-students/applying-graduate-school",
+    "scholarship_ids": [
+      "vanier-cgs"
+    ],
+    "max_coverage_pct": 100,
+    "max_stipend_usd": 3700,
+    "scholarship_providers": [
+      "Government of Canada"
+    ],
+    "unverified_fields": [
+      "full_tuition_usd"
+    ]
+  },
+  {
+    "program_id": "umelbourne-mit",
+    "program_name": "Master of Information Technology",
+    "university": "University of Melbourne",
+    "city": "Melbourne",
+    "country_id": "AU",
+    "faculty_or_department": "Melbourne School of Engineering",
+    "duration_months": 24,
+    "language_of_instruction": "English",
+    "full_tuition_usd": 62000,
+    "program_url": "https://study.unimelb.edu.au/find/courses/graduate/master-of-information-technology/",
+    "scholarship_ids": [
+      "australia-awards",
+      "umelbourne-grad-intl"
+    ],
+    "max_coverage_pct": 100,
+    "max_stipend_usd": 2100,
+    "scholarship_providers": [
+      "Australian Government (DFAT)",
+      "University of Melbourne"
+    ],
+    "unverified_fields": []
+  },
+  {
+    "program_id": "unsw-mit",
+    "program_name": "Master of Information Technology",
+    "university": "University of New South Wales",
+    "city": "Sydney",
+    "country_id": "AU",
+    "faculty_or_department": "School of Computer Science and Engineering",
+    "duration_months": 24,
+    "language_of_instruction": "English",
+    "full_tuition_usd": 58000,
+    "program_url": "https://www.unsw.edu.au/study/postgraduate/master-of-information-technology",
+    "scholarship_ids": [
+      "australia-awards",
+      "unsw-scientia"
+    ],
+    "max_coverage_pct": 100,
+    "max_stipend_usd": 2600,
+    "scholarship_providers": [
+      "UNSW Sydney",
+      "Australian Government (DFAT)"
+    ],
+    "unverified_fields": []
+  },
+  {
+    "program_id": "usydney-mit",
+    "program_name": "Master of Information Technology",
+    "university": "University of Sydney",
+    "city": "Sydney",
+    "country_id": "AU",
+    "faculty_or_department": "School of Computer Science",
+    "duration_months": 24,
+    "language_of_instruction": "English",
+    "full_tuition_usd": 60000,
+    "program_url": "https://www.sydney.edu.au/courses/courses/pc/master-of-information-technology.html",
+    "scholarship_ids": [
+      "australia-awards"
+    ],
+    "max_coverage_pct": 100,
+    "max_stipend_usd": 2100,
+    "scholarship_providers": [
+      "Australian Government (DFAT)"
+    ],
+    "unverified_fields": []
+  }
+]
