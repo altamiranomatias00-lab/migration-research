@@ -1016,7 +1016,15 @@ function doSearch() {
   degrees.forEach(d => url += `degree=${d}&`);
   countries.forEach(c => url += `country=${c}&`);
 
-  fetch(url).then(r=>r.json()).then(data => {
+  fetch(url).then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }).then(data => {
+    // Guard: if API returned an error object instead of array
+    if (!Array.isArray(data)) {
+      console.warn('API returned non-array:', data);
+      data = [];
+    }
     // Sort by VCI ascending (lower cost = better). Nulls go last.
     data.sort((a, b) => {
       if (a.vci_usd == null && b.vci_usd == null) return 0;
@@ -1032,12 +1040,14 @@ function doSearch() {
     aiInd.classList.remove('show');
     stopPhraseRotation();
     showResults(data);
-    // Bubble already collapsed at search start — no action needed
-  }).catch(() => {
+  }).catch(err => {
+    console.error('Search failed:', err);
     sBtn.disabled = false;
     sBtn.textContent = t('searchBtn');
     aiInd.classList.remove('show');
     stopPhraseRotation();
+    // Show error in results panel
+    showResults([]);
   });
 }
 sBtn.onclick = doSearch;
