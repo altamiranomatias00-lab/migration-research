@@ -1016,37 +1016,81 @@ function doSearch() {
   degrees.forEach(d => url += `degree=${d}&`);
   countries.forEach(c => url += `country=${c}&`);
 
-  fetch(url).then(r => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.json();
-  }).then(data => {
-    // Guard: if API returned an error object instead of array
-    if (!Array.isArray(data)) {
-      console.warn('API returned non-array:', data);
-      data = [];
+  fetch(url).then(r => r.json()).then(resp => {
+    // New format: {results: [...], ai_job_id: "..."|null}
+    let data = Array.isArray(resp) ? resp : (resp.results || []);
+    const jobId = resp.ai_job_id;
+
+    function processAndShow(d) {
+      d.sort((a, b) => {
+        if (a.vci_usd == null && b.vci_usd == null) return 0;
+        if (a.vci_usd == null) return 1;
+        if (b.vci_usd == null) return -1;
+        return a.vci_usd - b.vci_usd;
+      });
+      d.forEach((r, i) => { r._rank = i + 1; });
+      results = d;
+      showResults(d);
     }
-    // Sort by VCI ascending (lower cost = better). Nulls go last.
-    data.sort((a, b) => {
-      if (a.vci_usd == null && b.vci_usd == null) return 0;
-      if (a.vci_usd == null) return 1;
-      if (b.vci_usd == null) return -1;
-      return a.vci_usd - b.vci_usd;
-    });
-    // Assign fresh ranks
-    data.forEach((r, i) => { r._rank = i + 1; });
-    results = data;
-    sBtn.disabled = false;
-    sBtn.textContent = t('searchBtn');
-    aiInd.classList.remove('show');
-    stopPhraseRotation();
-    showResults(data);
+
+    // Show cached results immediately
+    if (data.length) {
+      sBtn.disabled = false;
+      sBtn.textContent = t('searchBtn');
+      if (!jobId) { aiInd.classList.remove('show'); stopPhraseRotation(); }
+      processAndShow(data);
+    }
+
+    // Poll for AI results if job was launched
+    if (jobId) {
+      let polls = 0;
+      const maxPolls = 30; // 30 * 3s = 90s max
+      const pollInterval = setInterval(() => {
+        polls++;
+        fetch(`/api/search/poll/${jobId}`).then(r => r.json()).then(p => {
+          if (p.status === 'done') {
+            clearInterval(pollInterval);
+            sBtn.disabled = false;
+            sBtn.textContent = t('searchBtn');
+            aiInd.classList.remove('show');
+            stopPhraseRotation();
+            if (p.results && p.results.length) {
+              // Merge: AI results first, then cached that aren't duplicates
+              const aiIds = new Set(p.results.map(r => r.program_id));
+              const merged = [...p.results, ...data.filter(r => !aiIds.has(r.program_id))];
+              processAndShow(merged);
+            } else if (!data.length) {
+              showResults([]);
+            }
+          } else if (polls >= maxPolls) {
+            clearInterval(pollInterval);
+            sBtn.disabled = false;
+            sBtn.textContent = t('searchBtn');
+            aiInd.classList.remove('show');
+            stopPhraseRotation();
+            if (!data.length) showResults([]);
+          }
+        }).catch(() => {
+          clearInterval(pollInterval);
+          aiInd.classList.remove('show');
+          stopPhraseRotation();
+          sBtn.disabled = false;
+          sBtn.textContent = t('searchBtn');
+        });
+      }, 3000);
+    } else {
+      sBtn.disabled = false;
+      sBtn.textContent = t('searchBtn');
+      aiInd.classList.remove('show');
+      stopPhraseRotation();
+      if (!data.length) showResults([]);
+    }
   }).catch(err => {
     console.error('Search failed:', err);
     sBtn.disabled = false;
     sBtn.textContent = t('searchBtn');
     aiInd.classList.remove('show');
     stopPhraseRotation();
-    // Show error in results panel
     showResults([]);
   });
 }

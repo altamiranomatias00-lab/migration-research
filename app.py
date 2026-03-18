@@ -27,6 +27,7 @@ from formulas import (
 )
 from scraper import Country, Program, Scholarship
 import time
+import threading
 import urllib.request
 from collections import defaultdict
 
@@ -209,6 +210,27 @@ def api_db_stats():
     return jsonify(stats)
 
 
+# ─── BACKGROUND AI SEARCH ─────────────────────────────
+_ai_jobs = {}  # job_id -> {"status": "running"|"done"|"error", "program_ids": [...]}
+
+def _run_ai_background(job_id, keyword, degrees, countries, search_lang):
+    """Run AI search in background thread, store results in SQLite."""
+    try:
+        print(f"[BG-AI] Starting job {job_id}...", flush=True)
+        ai_data = ai_search(keyword, degrees or ["masters"], countries, lang=search_lang)
+        if ai_data:
+            _ingest_ai_results(ai_data)
+            ids = [p["program_id"] for p in ai_data.get("programs", [])]
+            _ai_jobs[job_id] = {"status": "done", "program_ids": ids}
+            print(f"[BG-AI] Job {job_id} done: {len(ids)} programs", flush=True)
+        else:
+            _ai_jobs[job_id] = {"status": "done", "program_ids": []}
+            print(f"[BG-AI] Job {job_id}: AI returned None", flush=True)
+    except Exception as e:
+        print(f"[BG-AI] Job {job_id} error: {e}", flush=True)
+        _ai_jobs[job_id] = {"status": "error", "program_ids": []}
+
+
 @app.route("/api/search")
 def api_search():
   try:
@@ -223,34 +245,26 @@ def api_search():
     if countries:
         countries = [c for c in countries if c] or None
 
-    print(f"[SEARCH] q={keyword}, degrees={degrees}, countries={countries}, fresh={fresh}, api_key={'YES' if ANTHROPIC_API_KEY else 'NO'}", flush=True)
+    print(f"[SEARCH] q={keyword}, degrees={degrees}, countries={countries}, fresh={fresh}", flush=True)
 
-    # 1. Check cache first
+    # 1. Always return cached results immediately
     cached = search_programs(keyword=keyword, degree_levels=degrees, country_ids=countries)
-    print(f"[SEARCH] cached results: {len(cached)}", flush=True)
+    if not cached:
+        cached = search_programs(keyword=None, degree_levels=degrees, country_ids=countries)
+    print(f"[SEARCH] returning {len(cached)} cached results", flush=True)
 
-    # 2. If no cached results or fresh requested, use AI
-    if (not cached or fresh) and keyword and ANTHROPIC_API_KEY:
-        ai_data = ai_search(keyword, degrees or ["masters"], countries, lang=search_lang)
-        if ai_data:
-            try:
-                _ingest_ai_results(ai_data)
-                print(f"[SEARCH] Ingest OK", flush=True)
-            except Exception as e:
-                print(f"[SEARCH] Ingest ERROR: {e}", flush=True)
-                import traceback; traceback.print_exc()
-            ai_program_ids = [p["program_id"] for p in ai_data.get("programs", [])]
-            if ai_program_ids:
-                cached = search_programs_by_ids(ai_program_ids, degree_levels=degrees, country_ids=countries)
-            else:
-                cached = search_programs(keyword=keyword, degree_levels=degrees, country_ids=countries)
-            print(f"[SEARCH] after ingest: {len(cached)} results", flush=True)
-        else:
-            print(f"[SEARCH] AI returned None, falling back to all cached", flush=True)
-            # AI failed — return whatever we have in cache (broader search)
-            if not cached:
-                cached = search_programs(keyword=None, degree_levels=degrees, country_ids=countries)
-                print(f"[SEARCH] fallback all cached: {len(cached)} results", flush=True)
+    # 2. If fresh requested, launch AI in background
+    ai_job_id = None
+    if fresh and keyword and ANTHROPIC_API_KEY:
+        import hashlib
+        ai_job_id = hashlib.md5(f"{keyword}-{degrees}-{countries}".encode()).hexdigest()[:12]
+        if ai_job_id not in _ai_jobs or _ai_jobs[ai_job_id]["status"] != "running":
+            _ai_jobs[ai_job_id] = {"status": "running", "program_ids": []}
+            t = threading.Thread(target=_run_ai_background,
+                                 args=(ai_job_id, keyword, degrees, countries, search_lang),
+                                 daemon=True)
+            t.start()
+            print(f"[SEARCH] AI job {ai_job_id} launched in background", flush=True)
 
     # Parse JSON strings and add coordinates
     for r in cached:
@@ -263,12 +277,41 @@ def api_search():
         city = r.get("city", "")
         r["coords"] = CITY_COORDS.get(city)
 
-    return jsonify(cached)
+    return jsonify({"results": cached, "ai_job_id": ai_job_id})
   except Exception as e:
     import traceback
     traceback.print_exc()
     print(f"[SEARCH] FATAL ERROR: {e}", flush=True)
-    return jsonify({"error": str(e), "type": type(e).__name__}), 500
+    return jsonify({"results": [], "ai_job_id": None, "error": str(e)}), 200
+
+
+@app.route("/api/search/poll/<job_id>")
+def api_search_poll(job_id):
+    """Poll for AI background search results."""
+    job = _ai_jobs.get(job_id)
+    if not job:
+        return jsonify({"status": "not_found", "results": []})
+    if job["status"] == "running":
+        return jsonify({"status": "running", "results": []})
+
+    # Job done — fetch results
+    program_ids = job.get("program_ids", [])
+    if program_ids:
+        cached = search_programs_by_ids(program_ids)
+        for r in cached:
+            for field in ("alerts", "scholarship_providers", "unverified_fields"):
+                if isinstance(r.get(field), str):
+                    try:
+                        r[field] = json.loads(r[field])
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+            r["coords"] = CITY_COORDS.get(r.get("city", ""))
+        # Clean up job
+        del _ai_jobs[job_id]
+        return jsonify({"status": "done", "results": cached})
+
+    del _ai_jobs[job_id]
+    return jsonify({"status": "done", "results": []})
 
 
 @app.route("/api/program/<program_id>")
