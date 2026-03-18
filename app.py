@@ -173,6 +173,24 @@ def api_geo():
     return jsonify({"country_code": "PE", "country_name": "Peru", "detected": False})
 
 
+@app.route("/api/health")
+def api_health():
+    """Public health check — no secrets exposed."""
+    conn = get_conn()
+    counts = {}
+    for table in ["countries", "programs", "scholarships"]:
+        row = conn.execute(f"SELECT COUNT(*) as cnt FROM {table}").fetchone()
+        counts[table] = row["cnt"]
+    conn.close()
+    return jsonify({
+        "status": "ok",
+        "ai_available": bool(ANTHROPIC_API_KEY),
+        "ai_key_length": len(ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else 0,
+        "ai_key_prefix": ANTHROPIC_API_KEY[:8] + "..." if ANTHROPIC_API_KEY and len(ANTHROPIC_API_KEY) > 8 else "none",
+        "tables": counts,
+    })
+
+
 @app.route("/api/db-stats")
 def api_db_stats():
     """Return table counts only (no sample data exposed)."""
