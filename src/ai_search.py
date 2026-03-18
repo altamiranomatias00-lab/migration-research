@@ -1,5 +1,5 @@
 """
-AI-powered search using Google Gemini API.
+AI-powered search using Google Gemini API (google-genai SDK).
 Researches real university programs, immigration data, and scholarships on demand.
 Returns data matching Notion schema: Países, Maestrias, Becas.
 """
@@ -7,8 +7,8 @@ import json
 import os
 import time
 from pathlib import Path
-import google.generativeai as genai
-from google.api_core import exceptions as google_exceptions
+from google import genai
+from google.genai import types
 
 # Load from .env file if not in environment
 def _load_api_key():
@@ -25,25 +25,16 @@ def _load_api_key():
 GEMINI_API_KEY = _load_api_key()
 ANTHROPIC_API_KEY = GEMINI_API_KEY  # backward compat
 
+# Initialize client
+_client = None
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+    _client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Ordered list of models to try; first success wins.
 MODEL_CANDIDATES = [
     "gemini-2.5-flash",
     "gemini-2.0-flash",
 ]
-
-# Transient API errors that warrant a retry.
-_RETRYABLE_EXCEPTIONS = (
-    google_exceptions.ResourceExhausted,
-    google_exceptions.ServiceUnavailable,
-    google_exceptions.DeadlineExceeded,
-    google_exceptions.InternalServerError,
-    google_exceptions.Aborted,
-    ConnectionError,
-    TimeoutError,
-)
 
 # Maximum retries per model attempt.
 _MAX_RETRIES = 2
@@ -52,15 +43,11 @@ _BACKOFF_BASE = 2  # seconds
 
 def _repair_json(text: str) -> dict:
     """Try to repair truncated JSON from AI response."""
-    # Strategy: find the last complete object in each array, close everything
     import re
-    # Try progressively trimming from the end to find valid JSON
     for trim in range(min(len(text), 2000)):
         candidate = text[:len(text) - trim]
-        # Count open/close braces and brackets
         opens = candidate.count('{') - candidate.count('}')
         open_brackets = candidate.count('[') - candidate.count(']')
-        # Close them
         suffix = ']' * open_brackets + '}' * opens
         try:
             result = json.loads(candidate + suffix)
@@ -69,13 +56,12 @@ def _repair_json(text: str) -> dict:
                 return result
         except json.JSONDecodeError:
             continue
-    # Last resort: try to extract each array separately
     result = {"countries": [], "programs": [], "scholarships": []}
     for key in result:
         pattern = f'"{key}"\\s*:\\s*\\['
         m = re.search(pattern, text)
         if m:
-            start = m.end() - 1  # include the [
+            start = m.end() - 1
             depth = 0
             for i in range(start, len(text)):
                 if text[i] == '[': depth += 1
@@ -151,42 +137,30 @@ _SCHOLARSHIP_REQUIRED = {
 
 
 def _fill_defaults(item: dict, defaults: dict) -> dict:
-    """Fill missing or None-valued required fields with sensible defaults."""
     for key, default in defaults.items():
-        if key not in item or (item[key] is None and default is not None):
-            # Only overwrite None with a non-None default; keep explicit None
-            if key not in item:
-                item[key] = default
-            elif item[key] is None and default is not None:
-                item[key] = default
+        if key not in item:
+            item[key] = default
+        elif item[key] is None and default is not None:
+            item[key] = default
     return item
 
 
 def _validate_and_postprocess(result: dict, degree_level: str) -> dict | None:
-    """Validate that all 3 arrays exist and have data, then fill missing fields.
-
-    Returns the cleaned result or None if validation fails irrecoverably.
-    """
     required_keys = ("countries", "programs", "scholarships")
-
-    # Ensure all arrays exist
     for key in required_keys:
         if key not in result or not isinstance(result[key], list):
             result[key] = []
 
-    # Check that we have at least some data
     if not result["countries"] and not result["programs"]:
         print("[AI] Validation failed: no countries and no programs returned", flush=True)
         return None
 
-    # Fill in missing fields with defaults
     for country in result["countries"]:
         _fill_defaults(country, _COUNTRY_REQUIRED)
 
     for program in result["programs"]:
         defaults = {**_PROGRAM_REQUIRED, "degree_level": degree_level}
         _fill_defaults(program, defaults)
-        # Auto-generate program_id if missing
         if not program.get("program_id"):
             uni_slug = program.get("university", "unknown").lower().replace(" ", "-")[:30]
             prog_slug = program.get("program_name", "unknown").lower().replace(" ", "-")[:30]
@@ -194,7 +168,6 @@ def _validate_and_postprocess(result: dict, degree_level: str) -> dict | None:
 
     for scholarship in result["scholarships"]:
         _fill_defaults(scholarship, _SCHOLARSHIP_REQUIRED)
-        # Auto-generate scholarship_id if missing
         if not scholarship.get("scholarship_id"):
             org_slug = scholarship.get("provider_organization", "unknown").lower().replace(" ", "-")[:30]
             name_slug = scholarship.get("scholarship_name", "unknown").lower().replace(" ", "-")[:30]
@@ -210,51 +183,48 @@ def _validate_and_postprocess(result: dict, degree_level: str) -> dict | None:
 # API call with retry + model fallback
 # ---------------------------------------------------------------------------
 
-def _call_gemini_with_retry(model_name: str, prompt: str) -> str:
-    """Call Gemini API with up to _MAX_RETRIES retries and exponential backoff.
-
-    Returns the raw response text on success.
-    Raises the last exception on exhaustion of retries.
-    """
-    model = genai.GenerativeModel(
-        model_name,
-        system_instruction=SYSTEM_PROMPT,
-    )
-
+def _call_gemini_with_retry(model_name: str, prompt: str, system_prompt: str) -> str:
     last_exc = None
-    for attempt in range(_MAX_RETRIES + 1):  # 0, 1, 2 = initial + 2 retries
+    for attempt in range(_MAX_RETRIES + 1):
         try:
-            response = model.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(
+            response = _client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
                     max_output_tokens=32000,
                     temperature=0.2,
                 ),
             )
             return response.text.strip()
-        except _RETRYABLE_EXCEPTIONS as exc:
-            last_exc = exc
-            if attempt < _MAX_RETRIES:
-                wait = _BACKOFF_BASE ** (attempt + 1)
-                print(f"[AI] Transient error ({type(exc).__name__}), "
-                      f"retrying in {wait}s (attempt {attempt + 1}/{_MAX_RETRIES})...",
-                      flush=True)
-                time.sleep(wait)
+        except Exception as exc:
+            exc_name = type(exc).__name__
+            # Check if retryable (transient errors)
+            if any(keyword in exc_name.lower() or keyword in str(exc).lower()
+                   for keyword in ["resource", "unavailable", "deadline", "internal", "timeout", "connection"]):
+                last_exc = exc
+                if attempt < _MAX_RETRIES:
+                    wait = _BACKOFF_BASE ** (attempt + 1)
+                    print(f"[AI] Transient error ({exc_name}), retrying in {wait}s...", flush=True)
+                    time.sleep(wait)
+                else:
+                    print(f"[AI] Exhausted retries for {model_name}: {exc}", flush=True)
+            elif "permission" in exc_name.lower() or "permission" in str(exc).lower():
+                print(f"[AI] Permission denied: {exc}", flush=True)
+                raise
+            elif "not_found" in exc_name.lower() or "404" in str(exc):
+                print(f"[AI] Model not found ({model_name}): {exc}", flush=True)
+                raise
             else:
-                print(f"[AI] Exhausted retries for {model_name}: {exc}", flush=True)
-        except google_exceptions.InvalidArgument as exc:
-            # Model doesn't exist or bad request — not retryable
-            print(f"[AI] Invalid argument for {model_name}: {exc}", flush=True)
-            raise
-        except google_exceptions.PermissionDenied as exc:
-            print(f"[AI] Permission denied for {model_name}: {exc}", flush=True)
-            raise
-        except google_exceptions.NotFound as exc:
-            print(f"[AI] Model not found ({model_name}): {exc}", flush=True)
-            raise
+                last_exc = exc
+                print(f"[AI] Error ({exc_name}): {exc}", flush=True)
+                if attempt < _MAX_RETRIES:
+                    wait = _BACKOFF_BASE ** (attempt + 1)
+                    time.sleep(wait)
+                else:
+                    raise
 
-    # All retries exhausted — re-raise the last transient error
-    raise last_exc  # type: ignore[misc]
+    raise last_exc
 
 
 SYSTEM_PROMPT = """You are a migration research assistant specializing in international education pathways for a Peruvian applicant seeking Permanent Residency abroad via a Master's (or Bachelor's or Doctorate) degree.
@@ -358,7 +328,7 @@ FORMAT RULES:
 
 
 def ai_search(keyword: str, degree_levels: list[str], country_ids: list[str] | None = None, lang: str = "en") -> dict | None:
-    if not GEMINI_API_KEY:
+    if not GEMINI_API_KEY or not _client:
         return None
 
     degree_str = ", ".join(degree_levels) if degree_levels else "masters"
@@ -381,36 +351,21 @@ def ai_search(keyword: str, degree_levels: list[str], country_ids: list[str] | N
 
     print(f"[AI] Calling Gemini API...", flush=True)
 
-    # Try each model candidate in order; fall back on non-retryable failures.
     for model_idx, model_name in enumerate(MODEL_CANDIDATES):
         try:
             print(f"[AI] Trying model: {model_name}", flush=True)
-            text = _call_gemini_with_retry(model_name, prompt)
-        except _RETRYABLE_EXCEPTIONS:
-            # Retries exhausted for this model — try next model
-            if model_idx < len(MODEL_CANDIDATES) - 1:
-                print(f"[AI] Falling back to next model...", flush=True)
-                continue
-            print(f"[AI] All models exhausted after retries", flush=True)
-            return None
-        except (
-            google_exceptions.InvalidArgument,
-            google_exceptions.NotFound,
-        ):
-            # Model not available — try next model
-            if model_idx < len(MODEL_CANDIDATES) - 1:
-                print(f"[AI] Model {model_name} unavailable, trying next...", flush=True)
-                continue
-            print(f"[AI] No available models", flush=True)
-            return None
-        except google_exceptions.PermissionDenied as exc:
-            print(f"[AI] Permission denied (check API key): {exc}", flush=True)
-            return None
+            text = _call_gemini_with_retry(model_name, prompt, SYSTEM_PROMPT)
         except Exception as exc:
-            print(f"[AI] Unexpected API error ({type(exc).__name__}): {exc}", flush=True)
+            exc_name = type(exc).__name__
+            if "permission" in exc_name.lower() or "permission" in str(exc).lower():
+                print(f"[AI] Permission denied (check API key): {exc}", flush=True)
+                return None
+            if model_idx < len(MODEL_CANDIDATES) - 1:
+                print(f"[AI] Model {model_name} failed, trying next...", flush=True)
+                continue
+            print(f"[AI] All models exhausted", flush=True)
             return None
 
-        # If we reach here, we got a successful response text.
         # Strip markdown fences if present
         if text.startswith("```"):
             first_newline = text.index("\n")
@@ -429,9 +384,7 @@ def ai_search(keyword: str, degree_levels: list[str], country_ids: list[str] | N
             print(f"[AI] Response was not a JSON object", flush=True)
             return None
 
-        # Validate and fill defaults
         result = _validate_and_postprocess(result, raw_degree)
         return result
 
-    # Should not reach here, but just in case
     return None
