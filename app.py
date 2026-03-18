@@ -27,6 +27,7 @@ from formulas import (
 )
 from scraper import Country, Program, Scholarship
 import time
+import urllib.request
 from collections import defaultdict
 
 app = Flask(__name__, static_folder="static")
@@ -143,6 +144,33 @@ def api_coords():
 @app.route("/api/config")
 def api_config():
     return jsonify({"ai_available": bool(ANTHROPIC_API_KEY)})
+
+
+@app.route("/api/geo")
+def api_geo():
+    """Detect user country from IP. Returns country code and name."""
+    try:
+        ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+        if ip and "," in ip:
+            ip = ip.split(",")[0].strip()
+        # Local/private IPs can't be geolocated
+        if ip in ("127.0.0.1", "::1", "localhost") or ip.startswith("192.168.") or ip.startswith("10."):
+            return jsonify({"country_code": "PE", "country_name": "Peru", "detected": False})
+        req = urllib.request.Request(
+            f"http://ip-api.com/json/{ip}?fields=status,countryCode,country",
+            headers={"User-Agent": "MigrationExplorer/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read())
+        if data.get("status") == "success":
+            return jsonify({
+                "country_code": data["countryCode"],
+                "country_name": data["country"],
+                "detected": True
+            })
+    except Exception:
+        pass
+    return jsonify({"country_code": "PE", "country_name": "Peru", "detected": False})
 
 
 @app.route("/api/db-stats")

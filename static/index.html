@@ -185,6 +185,22 @@ max-width:440px;line-height:1.6;backdrop-filter:blur(12px)}
 background:var(--fg);margin-right:8px;animation:pulse 1.2s ease infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
+/* COOKIE BANNER */
+#cookieBanner{position:fixed;bottom:0;left:0;right:0;z-index:300;background:var(--glass);
+backdrop-filter:blur(20px);border-top:1px solid var(--border);padding:16px 28px;
+display:flex;align-items:center;justify-content:space-between;gap:16px;
+transition:transform .4s cubic-bezier(.25,.8,.25,1)}
+#cookieBanner.hidden{transform:translateY(100%);pointer-events:none}
+#cookieBanner p{font-size:11px;font-weight:300;color:var(--fg2);letter-spacing:.3px;line-height:1.5;max-width:700px}
+#cookieBanner p a{color:var(--fg);text-decoration:underline}
+.cookie-btns{display:flex;gap:8px;flex-shrink:0}
+.cookie-btn{padding:8px 20px;font-family:inherit;font-size:9px;font-weight:700;
+letter-spacing:2px;text-transform:uppercase;border-radius:20px;cursor:pointer;transition:all .15s}
+.cookie-btn.accept{background:var(--fg);color:var(--bg);border:1px solid var(--fg)}
+.cookie-btn.accept:hover{opacity:.85}
+.cookie-btn.decline{background:transparent;color:var(--g1);border:1px solid var(--border)}
+.cookie-btn.decline:hover{border-color:var(--g1)}
+
 /* RESPONSIVE */
 @media(max-width:768px){
   #resultsPanel{width:100%;border-left:none;border-top:1px solid #1a1a1a}
@@ -263,6 +279,15 @@ background:var(--fg);margin-right:8px;animation:pulse 1.2s ease infinite}
   <div class="det" id="detContent"></div>
 </div>
 
+<!-- COOKIE BANNER -->
+<div id="cookieBanner" class="hidden">
+  <p id="cookieText"></p>
+  <div class="cookie-btns">
+    <button class="cookie-btn accept" id="cookieAccept"></button>
+    <button class="cookie-btn decline" id="cookieDecline"></button>
+  </div>
+</div>
+
 <script type="importmap">
 {
   "imports": {
@@ -292,7 +317,7 @@ const T = {
     stipend: 'Stipend',
     annual: 'Annual',
     deadline: 'Deadline',
-    peruEligible: 'Peru Eligible',
+    peruEligible: 'Eligible',
     vciTotal: 'VCI Total',
     tuitionYear: 'Tuition / Year',
     fullTuition: 'Full Tuition',
@@ -309,7 +334,7 @@ const T = {
     timeToPR: 'Time to PR',
     workAllowed: 'Work Allowed',
     solvencyBuffer: 'Solvency Buffer',
-    embassy: 'Embassy in Peru',
+    embassyIn: 'Embassy in',
     scholarships: 'Scholarships',
     recommendation: 'Recommendation',
     noRecommendation: 'No recommendation available.',
@@ -326,6 +351,9 @@ const T = {
     language: 'Language',
     scholAmount: 'Scholarship Covers',
     costAfterSchol: 'You Pay',
+    cookieText: 'We use cookies to improve your experience and analytics.',
+    cookieAccept: 'ACCEPT',
+    cookieDecline: 'DECLINE',
     r_Europe: 'EUROPE', r_NorthAmerica: 'NORTH AMERICA', r_Oceania: 'OCEANIA',
     r_Asia: 'ASIA', r_SouthAmerica: 'SOUTH AMERICA', r_Africa: 'AFRICA',
   },
@@ -360,7 +388,7 @@ const T = {
     timeToPR: 'Tiempo a RP',
     workAllowed: 'Trabajo Permitido',
     solvencyBuffer: 'Colchón Solvencia',
-    embassy: 'Embajada en Perú',
+    embassyIn: 'Embajada en',
     scholarships: 'Becas',
     recommendation: 'Recomendación',
     noRecommendation: 'Sin recomendación disponible.',
@@ -377,6 +405,9 @@ const T = {
     language: 'Idioma',
     scholAmount: 'Beca Cubre',
     costAfterSchol: 'Pagas Tú',
+    cookieText: 'Usamos cookies para mejorar tu experiencia y analítica.',
+    cookieAccept: 'ACEPTAR',
+    cookieDecline: 'RECHAZAR',
     r_Europe: 'EUROPA', r_NorthAmerica: 'NORTEAMÉRICA', r_Oceania: 'OCEANÍA',
     r_Asia: 'ASIA', r_SouthAmerica: 'SUDAMÉRICA', r_Africa: 'ÁFRICA',
   }
@@ -458,6 +489,36 @@ function applyLang() {
 const LIMA = { lat: -12.05, lng: -77.04 };
 let CITY_COORDS = {};
 fetch('/api/coords').then(r=>r.json()).then(d=>{ CITY_COORDS = d; });
+
+// ─── USER COUNTRY (from IP) ─────────────────────────
+let userCountryCode = 'PE';
+let userCountryName = 'Peru';
+fetch('/api/geo').then(r=>r.json()).then(d=>{
+  userCountryCode = d.country_code;
+  userCountryName = d.country_name;
+}).catch(()=>{});
+
+// ─── COOKIE BANNER ──────────────────────────────────
+(function initCookieBanner(){
+  const banner = document.getElementById('cookieBanner');
+  const consent = localStorage.getItem('cookie_consent');
+  if (consent) return; // already answered
+  // Show banner after brief delay
+  setTimeout(()=>{
+    document.getElementById('cookieText').textContent = t('cookieText');
+    document.getElementById('cookieAccept').textContent = t('cookieAccept');
+    document.getElementById('cookieDecline').textContent = t('cookieDecline');
+    banner.classList.remove('hidden');
+  }, 1500);
+  document.getElementById('cookieAccept').onclick = ()=>{
+    localStorage.setItem('cookie_consent', 'accepted');
+    banner.classList.add('hidden');
+  };
+  document.getElementById('cookieDecline').onclick = ()=>{
+    localStorage.setItem('cookie_consent', 'declined');
+    banner.classList.add('hidden');
+  };
+})();
 
 // ─── REGIONS & COUNTRIES ────────────────────────────
 const REGIONS = {
@@ -1137,7 +1198,7 @@ function openDetail(pid) {
         <div class="d-m"><div class="dv">${d.duration_months||'—'} mo</div><div class="dl">${t('duration')}</div></div>
         <div class="d-m"><div class="dv">${maxHrs}h/wk</div><div class="dl">${t('workAllowed')}</div></div>
         <div class="d-m"><div class="dv">${d.language_of_instruction||'English'}</div><div class="dl">${t('language')}</div></div>
-        <div class="d-m"><div class="dv">${d.embassy_in_peru?t('yes'):t('no')}</div><div class="dl">${t('embassy')}</div></div>
+        <div class="d-m"><div class="dv">${d.embassy_in_peru?t('yes'):t('no')}</div><div class="dl">${t('embassyIn')} ${userCountryName}</div></div>
       </div>
       <div class="d-sec"><h3>${t('timeline')}</h3><div class="d-body">${tlHtml}</div></div>
       <div class="d-sec"><h3>${t('scholarships')} (${d.scholarships?d.scholarships.length:0})</h3><div class="d-body">${scholHtml}</div></div>
