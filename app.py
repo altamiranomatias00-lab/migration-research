@@ -33,6 +33,30 @@ from collections import defaultdict
 
 app = Flask(__name__, static_folder="static")
 
+
+def _google_search_url(query: str) -> str:
+    """Build a reliable Google Search URL from a query string."""
+    from urllib.parse import quote_plus
+    return f"https://www.google.com/search?q={quote_plus(query)}"
+
+
+def _fix_program_urls(record: dict):
+    """Replace program_url with a Google Search link based on university + program name.
+    Gemini-generated URLs are often hallucinated 404s."""
+    uni = record.get("university", "")
+    pname = record.get("program_name", "")
+    if uni and pname:
+        record["program_url"] = _google_search_url(f"{uni} {pname} admissions")
+
+
+def _fix_scholarship_urls(scholarship: dict):
+    """Replace scholarship_url with a Google Search link."""
+    sname = scholarship.get("scholarship_name", "")
+    org = scholarship.get("provider_organization", "")
+    if sname:
+        scholarship["scholarship_url"] = _google_search_url(f"{sname} {org} apply scholarship")
+
+
 # ─── SECURITY ────────────────────────────────────────
 # Rate limiting: max requests per IP per minute
 _rate_limit = defaultdict(list)
@@ -211,24 +235,28 @@ def api_db_stats():
 
 
 # ─── BACKGROUND AI SEARCH ─────────────────────────────
-_ai_jobs = {}  # job_id -> {"status": "running"|"done"|"error", "program_ids": [...]}
+_ai_jobs = {}  # job_id -> {"status": "running"|"done"|"error", "keyword":..., "degrees":..., "countries":..., "new_count": int}
 
 def _run_ai_background(job_id, keyword, degrees, countries, search_lang):
     """Run AI search in background thread, store results in SQLite."""
     try:
         print(f"[BG-AI] Starting job {job_id}...", flush=True)
         ai_data = ai_search(keyword, degrees or ["masters"], countries, lang=search_lang)
+        new_count = 0
         if ai_data:
             _ingest_ai_results(ai_data)
-            ids = [p["program_id"] for p in ai_data.get("programs", [])]
-            _ai_jobs[job_id] = {"status": "done", "program_ids": ids}
-            print(f"[BG-AI] Job {job_id} done: {len(ids)} programs", flush=True)
-        else:
-            _ai_jobs[job_id] = {"status": "done", "program_ids": []}
-            print(f"[BG-AI] Job {job_id}: AI returned None", flush=True)
+            new_count = len(ai_data.get("programs", []))
+        _ai_jobs[job_id] = {
+            "status": "done",
+            "keyword": keyword,
+            "degrees": degrees,
+            "countries": countries,
+            "new_count": new_count,
+        }
+        print(f"[BG-AI] Job {job_id} done: {new_count} new from Gemini", flush=True)
     except Exception as e:
         print(f"[BG-AI] Job {job_id} error: {e}", flush=True)
-        _ai_jobs[job_id] = {"status": "error", "program_ids": []}
+        _ai_jobs[job_id] = {"status": "error", "keyword": keyword, "degrees": degrees, "countries": countries, "new_count": 0}
 
 
 @app.route("/api/search")
@@ -276,6 +304,7 @@ def api_search():
                     pass
         city = r.get("city", "")
         r["coords"] = CITY_COORDS.get(city)
+        _fix_program_urls(r)
 
     return jsonify({"results": cached, "ai_job_id": ai_job_id})
   except Exception as e:
@@ -287,31 +316,39 @@ def api_search():
 
 @app.route("/api/search/poll/<job_id>")
 def api_search_poll(job_id):
-    """Poll for AI background search results."""
+    """Poll for AI background search results.
+    When done, re-queries the FULL database with original filters so the user
+    gets Gemini's new findings + everything already stored from past searches."""
     job = _ai_jobs.get(job_id)
     if not job:
         return jsonify({"status": "not_found", "results": []})
     if job["status"] == "running":
         return jsonify({"status": "running", "results": []})
 
-    # Job done — fetch results
-    program_ids = job.get("program_ids", [])
-    if program_ids:
-        cached = search_programs_by_ids(program_ids)
-        for r in cached:
-            for field in ("alerts", "scholarship_providers", "unverified_fields"):
-                if isinstance(r.get(field), str):
-                    try:
-                        r[field] = json.loads(r[field])
-                    except (json.JSONDecodeError, TypeError):
-                        pass
-            r["coords"] = CITY_COORDS.get(r.get("city", ""))
-        # Clean up job
-        del _ai_jobs[job_id]
-        return jsonify({"status": "done", "results": cached})
+    # Job done — re-search the FULL DB with original keyword/filters
+    keyword = job.get("keyword")
+    degrees = job.get("degrees")
+    countries = job.get("countries")
+    new_count = job.get("new_count", 0)
+
+    all_results = search_programs(keyword=keyword, degree_levels=degrees, country_ids=countries)
+    if not all_results:
+        all_results = search_programs(keyword=None, degree_levels=degrees, country_ids=countries)
+
+    for r in all_results:
+        for field in ("alerts", "scholarship_providers", "unverified_fields"):
+            if isinstance(r.get(field), str):
+                try:
+                    r[field] = json.loads(r[field])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        r["coords"] = CITY_COORDS.get(r.get("city", ""))
+        _fix_program_urls(r)
+
+    print(f"[POLL] Job {job_id}: {new_count} new from Gemini, {len(all_results)} total from DB", flush=True)
 
     del _ai_jobs[job_id]
-    return jsonify({"status": "done", "results": []})
+    return jsonify({"status": "done", "results": all_results})
 
 
 @app.route("/api/program/<program_id>")
@@ -334,6 +371,9 @@ def api_program(program_id):
                 except (json.JSONDecodeError, TypeError):
                     pass
     detail["coords"] = CITY_COORDS.get(detail.get("city", ""))
+    _fix_program_urls(detail)
+    for s in detail.get("scholarships", []):
+        _fix_scholarship_urls(s)
     return jsonify(detail)
 
 

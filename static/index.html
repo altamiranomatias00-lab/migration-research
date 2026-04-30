@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The GradwAI</title>
+<title>TheGradAI</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
@@ -30,8 +30,9 @@ canvas#globe{position:fixed;inset:0;z-index:0}
 #logo{position:fixed;top:24px;left:28px;z-index:150;display:flex;align-items:center;gap:10px;
 user-select:none;pointer-events:none}
 #logo svg{width:32px;height:32px}
-#logo .logo-text{font-size:13px;font-weight:700;letter-spacing:3px;
+#logo .logo-text{font-size:11px;font-weight:300;letter-spacing:2px;
 color:var(--fg);opacity:.85;transition:color .3s,opacity .3s}
+#logo .logo-highlight{font-weight:900;letter-spacing:3px}
 
 /* TOP-RIGHT CONTROLS */
 .top-controls{position:fixed;top:24px;right:24px;z-index:150;display:flex;gap:10px;align-items:center}
@@ -229,7 +230,7 @@ letter-spacing:2.5px;text-transform:uppercase;border-radius:24px;cursor:pointer;
     <line x1="2" y1="10" x2="30" y2="10" stroke="currentColor" stroke-width="0.4" opacity=".25"/>
     <line x1="2" y1="22" x2="30" y2="22" stroke="currentColor" stroke-width="0.4" opacity=".25"/>
   </svg>
-  <span class="logo-text">The Grad<span style="font-weight:900;opacity:1">w</span><span style="font-style:italic;opacity:.9">AI</span></span>
+  <span class="logo-text"><span class="logo-highlight">TheGradAI</span></span>
 </div>
 
 <!-- TOP-RIGHT CONTROLS -->
@@ -343,7 +344,7 @@ const T = {
     recommendation: 'Recommendation',
     noRecommendation: 'No recommendation available.',
     noScholarships: 'No scholarships found.',
-    visitProgram: 'Visit Program',
+    visitProgram: 'Search Program Online',
     yes: 'YES', no: 'NO',
     noEmbassy: 'NO EMBASSY',
     pressure: 'PRESSURE',
@@ -397,7 +398,7 @@ const T = {
     recommendation: 'Recomendación',
     noRecommendation: 'Sin recomendación disponible.',
     noScholarships: 'No se encontraron becas.',
-    visitProgram: 'Ver Programa',
+    visitProgram: 'Buscar Programa Online',
     yes: 'SÍ', no: 'NO',
     noEmbassy: 'SIN EMBAJADA',
     pressure: 'PRESIÓN',
@@ -1050,14 +1051,8 @@ function doSearch() {
           if (p.status === 'done') {
             clearInterval(pollInterval);
             finishSearch();
-            if (p.results && p.results.length) {
-              const aiIds = new Set(p.results.map(r => r.program_id));
-              const merged = [...p.results, ...data.filter(r => !aiIds.has(r.program_id))];
-              processAndShow(merged);
-            } else {
-              // AI returned nothing — show cached
-              processAndShow(data.length ? data : []);
-            }
+            // Poll returns ALL matching results from DB (new Gemini + existing)
+            processAndShow(p.results && p.results.length ? p.results : (data.length ? data : []));
           } else if (polls >= maxPolls) {
             clearInterval(pollInterval);
             finishSearch();
@@ -1112,8 +1107,10 @@ function showResults(data) {
 
   rList.innerHTML = data.map((r, i) => {
     const scholName = r.best_scholarship_name || r.university_scholarship || '—';
-    const covPct = r.best_coverage_pct != null ? r.best_coverage_pct + '%' : (r.coverage_pct != null ? r.coverage_pct + '%' : '—');
-    const stipend = r.best_stipend_monthly ? '$' + Number(r.best_stipend_monthly).toLocaleString() + '/mo' : (r.best_stipend_annual ? '$' + Math.round(r.best_stipend_annual/12).toLocaleString() + '/mo' : '—');
+    const covPct = r.best_coverage_pct != null ? r.best_coverage_pct + '%' : (r.coverage_pct != null ? (r.coverage_pct > 1 ? r.coverage_pct : Math.round(r.coverage_pct * 100)) + '%' : '—');
+    const stpRaw = r.best_stipend_monthly || r.stipend_monthly_usd || null;
+    const stipend = stpRaw ? '$' + Number(stpRaw).toLocaleString() + '/mo' : (r.best_stipend_annual ? '$' + Math.round(r.best_stipend_annual/12).toLocaleString() + '/mo' : (r.full_tuition_usd ? '$' + Number(r.full_tuition_usd).toLocaleString() : '—'));
+    const stipendLabel = stpRaw || r.best_stipend_annual ? t('stipend') : (r.full_tuition_usd ? t('fullTuition') : t('stipend'));
     return `<div class="rcard${i===0?' active':''}" data-i="${i}" data-pid="${r.program_id}">
       <div class="rk">${r._rank||i+1}</div>
       <div class="rinfo">
@@ -1123,7 +1120,7 @@ function showResults(data) {
       </div>
       <div class="rvci">
         <div class="rv">${stipend}</div>
-        <div class="rl">${t('stipend')}</div>
+        <div class="rl">${stipendLabel}</div>
       </div>
     </div>`;
   }).join('');
